@@ -2,6 +2,7 @@
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 using WordGenerator.Api.Application.Requests;
 using WordGenerator.Api.Domain.Entities;
 using WordGenerator.Api.Infra.Context;
@@ -11,17 +12,6 @@ namespace WordGenerator.Api.Application.Services
     public class WordGeneratorService
     {
         private readonly AppDbContext _context;
-        private bool IsNeutralPunctuation(char c)
-        {
-            return c == ':' ||
-                   c == '.' ||
-                   c == ',' ||
-                   c == ';' ||
-                   c == '-' ||
-                   c == '(' ||
-                   c == ')' ||
-                   c == '،';
-        }
 
         public WordGeneratorService(AppDbContext context)
         {
@@ -93,6 +83,7 @@ namespace WordGenerator.Api.Application.Services
             return ms.ToArray();
         }
 
+
         private Paragraph CreateCoverPage(CoverPageTemplate cover)
         {
             var paragraph = new Paragraph(
@@ -103,158 +94,45 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
-            var runs = new List<Run>();
-
-            // =====================================================
-            // TITLE (RTL safe + mixed language support)
-            // =====================================================
             if (!string.IsNullOrWhiteSpace(cover.Title))
             {
-                runs.Add(
-                    new Run(
-                        new RunProperties(
-                            new RunFonts
-                            {
-                                Ascii = "B Nazanin",
-                                HighAnsi = "B Nazanin",
-                                ComplexScript = "B Nazanin"
-                            },
-                            new FontSize { Val = "32" }, // 16pt
-                            new Bold()
-                        ),
-                        new Text(cover.Title)
-                        {
-                            Space = SpaceProcessingModeValues.Preserve
-                        }
-                    )
+                paragraph.Append(
+                    CreateRun(cover.Title, true, true),
+                    new Run(new Break())
                 );
-
-                runs.Add(new Run(new Break()));
             }
 
-            // =====================================================
-            // ITEMS
-            // =====================================================
             foreach (var item in cover.Items.OrderBy(x => x.Order))
             {
-                // LABEL (always Persian)
-                runs.Add(
-                    new Run(
-                        new RunProperties(
-                            new RunFonts
-                            {
-                                Ascii = "B Nazanin",
-                                HighAnsi = "B Nazanin",
-                                ComplexScript = "B Nazanin"
-                            },
-                            new FontSize { Val = "32" },
-                            new Bold()
-                        ),
-                        new Text(item.Label + ": ")
-                    )
+                paragraph.Append(
+                    CreateRun(":" + item.Label, true, false),
+                    new Run(new Break()),
+                    CreateRun("\u202B" + item.Value + "\u202C", false, false),
+                    new Run(new Break())
                 );
-
-                runs.Add(new Run(new Break()));
-
-                // VALUE (MIXED RTL/LTR FIXED)
-                AddMixedRun(runs, item.Value, isTitle: false);
-
-                runs.Add(new Run(new Break()));
             }
 
-            paragraph.Append(runs);
             return paragraph;
         }
 
-        private bool IsEnglishToken(string token)
+        private Run CreateRun(string text, bool isPersian, bool isTitle)
         {
-            if (string.IsNullOrWhiteSpace(token))
-                return false;
-
-            // اگر حداقل یک حرف انگلیسی داشته باشه → English حساب میشه
-            foreach (var c in token)
-            {
-                if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
-                    return true;
-            }
-
-            return false;
-        }
-
-        private void AddMixedRun(List<Run> runs, string text, bool isTitle = false)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-                return;
-
-            var tokens = SplitWithPunctuationFix(text);
-
-            foreach (var token in tokens)
-            {
-                bool isEnglish = IsEnglishToken(token);
-
-                runs.Add(
-                    new Run(
-                        new RunProperties(
-                            new RunFonts
-                            {
-                                Ascii = isEnglish ? "Times New Roman" : "B Nazanin",
-                                HighAnsi = isEnglish ? "Times New Roman" : "B Nazanin",
-                                ComplexScript = isEnglish ? "Times New Roman" : "B Nazanin"
-                            },
-                            new FontSize
-                            {
-                                Val = isTitle
-                                    ? "32"
-                                    : (isEnglish ? "28" : "32")
-                            },
-                            new Bold()
-                        ),
-                        new Text(token)
-                        {
-                            Space = SpaceProcessingModeValues.Preserve
-                        }
-                    )
-                );
-            }
-        }
-
-        private List<string> SplitWithPunctuationFix(string text)
-        {
-            var result = new List<string>();
-            var current = new List<char>();
-
-            bool? isEngState = null;
-
-            foreach (var c in text)
-            {
-                bool isEng = IsEnglish(c);
-
-                // punctuation handling (VERY IMPORTANT)
-                bool isPunctuation = IsNeutralPunctuation(c);
-
-                if (isPunctuation)
+            return new Run(
+                new RunProperties(
+                    new RunFonts
+                    {
+                        Ascii = isPersian ? "B Nazanin" : "Times New Roman",
+                        HighAnsi = isPersian ? "B Nazanin" : "Times New Roman",
+                        ComplexScript = isPersian ? "B Nazanin" : "Times New Roman"
+                    },
+                    new FontSize { Val = isTitle ? "32" : "28" },
+                    new Bold()
+                ),
+                new Text(text)
                 {
-                    current.Add(c);
-                    continue;
+                    Space = SpaceProcessingModeValues.Preserve
                 }
-
-                if (isEngState == null)
-                    isEngState = isEng;
-
-                if (isEng != isEngState)
-                {
-                    result.Add(new string(current.ToArray()));
-                    current.Clear();
-                    isEngState = isEng;
-                }
-
-                current.Add(c);
-            }
-
-            if (current.Count > 0)
-                result.Add(new string(current.ToArray()));
-
-            return result;
+            );
         }
 
         private Paragraph CreateTableOfContents()
