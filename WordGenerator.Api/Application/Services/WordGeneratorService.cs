@@ -113,12 +113,48 @@ namespace WordGenerator.Api.Application.Services
 
             foreach (var item in cover.Items.OrderBy(x => x.Order))
             {
+                // اضافه کردن Label
                 paragraph.Append(
                     CreateRun(PrepareRTLText(":" + item.Label), true, false),
-                    new Run(new Break()),
-                    CreateRun(PrepareRTLText(item.Value), false, false),
                     new Run(new Break())
                 );
+
+                // آماده‌سازی متن Value با تشخیص خودکار زبان
+                var runs = new List<Run>();
+                var current = new List<char>();
+                bool? currentIsEnglish = null;
+
+                var preparedText = PrepareRTLText(item.Value);
+
+                foreach (var c in preparedText)
+                {
+                    bool isEng = IsEnglish(c);
+
+                    if (currentIsEnglish == null)
+                    {
+                        currentIsEnglish = isEng;
+                    }
+
+                    if (currentIsEnglish != isEng)
+                    {
+                        runs.Add(CreateRun(new string(current.ToArray()), currentIsEnglish.Value, false));
+                        current.Clear();
+                        currentIsEnglish = isEng;
+                    }
+
+                    current.Add(c);
+                }
+
+                if (current.Count > 0)
+                {
+                    runs.Add(CreateRun(new string(current.ToArray()), currentIsEnglish ?? false, false));
+                }
+
+                // اضافه کردن runs به پاراگراف
+                paragraph.Append(runs);
+
+                // اضافه کردن Break بعد از Value (حالا این Break اجرا می‌شود)
+                paragraph.Append(new Run(new Break()));
             }
 
             return paragraph;
@@ -130,11 +166,11 @@ namespace WordGenerator.Api.Application.Services
                 new RunProperties(
                     new RunFonts
                     {
-                        Ascii = isPersian ? "B Nazanin" : "Times New Roman",
-                        HighAnsi = isPersian ? "B Nazanin" : "Times New Roman",
-                        ComplexScript = isPersian ? "B Nazanin" : "Times New Roman"
+                        Ascii = !isPersian ? "B Nazanin" : "Times New Roman",
+                        HighAnsi = !isPersian ? "B Nazanin" : "Times New Roman",
+                        ComplexScript = !isPersian ? "B Nazanin" : "Times New Roman"
                     },
-                    new FontSize { Val = isTitle ? "32" : "28" },
+                    new FontSize { Val = isTitle ? "32" : !isPersian ? "32" : "28" },
                     new Bold()
                 ),
                 new Text(text)
