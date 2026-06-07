@@ -83,6 +83,15 @@ namespace WordGenerator.Api.Application.Services
             return ms.ToArray();
         }
 
+        // تابع کمکی برای آماده‌سازی متن RTL
+        private string PrepareRTLText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return text;
+
+            // اضافه کردن کاراکترهای RLE و PDF برای نمایش درست متن مختلط
+            return "\u202B" + text + "\u202C";
+        }
 
         private Paragraph CreateCoverPage(CoverPageTemplate cover)
         {
@@ -97,7 +106,7 @@ namespace WordGenerator.Api.Application.Services
             if (!string.IsNullOrWhiteSpace(cover.Title))
             {
                 paragraph.Append(
-                    CreateRun(cover.Title, true, true),
+                    CreateRun(PrepareRTLText(cover.Title), true, true),
                     new Run(new Break())
                 );
             }
@@ -105,9 +114,9 @@ namespace WordGenerator.Api.Application.Services
             foreach (var item in cover.Items.OrderBy(x => x.Order))
             {
                 paragraph.Append(
-                    CreateRun(":" + item.Label, true, false),
+                    CreateRun(PrepareRTLText(":" + item.Label), true, false),
                     new Run(new Break()),
-                    CreateRun("\u202B" + item.Value + "\u202C", false, false),
+                    CreateRun(PrepareRTLText(item.Value), false, false),
                     new Run(new Break())
                 );
             }
@@ -232,7 +241,7 @@ namespace WordGenerator.Api.Application.Services
 
         private bool IsEnglish(char c)
         {
-            return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+            return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
         }
 
         private Paragraph CreateParagraph(string text)
@@ -254,7 +263,10 @@ namespace WordGenerator.Api.Application.Services
             var current = new List<char>();
             bool? currentIsEnglish = null;
 
-            foreach (var c in text)
+            // آماده‌سازی متن با RLE و PDF
+            var preparedText = PrepareRTLText(text);
+
+            foreach (var c in preparedText)
             {
                 bool isEng = IsEnglish(c);
 
@@ -307,7 +319,7 @@ namespace WordGenerator.Api.Application.Services
                     new RunProperties(
                         new RunFonts()
                         {
-                            Ascii = "B Nazanin",        // این مهمه
+                            Ascii = "B Nazanin",
                             HighAnsi = "B Nazanin",
                             ComplexScript = "B Nazanin",
                         },
@@ -338,7 +350,7 @@ namespace WordGenerator.Api.Application.Services
                         new FontSize() { Val = "32" },
                         new Bold()
                     ),
-                    new Text(text)
+                    new Text(PrepareRTLText(text))
                 )
             );
         }
