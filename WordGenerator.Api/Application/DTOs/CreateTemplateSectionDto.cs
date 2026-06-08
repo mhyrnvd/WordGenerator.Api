@@ -6,5 +6,6 @@
         public int Order { get; set; }
 
         public List<CreateParagraphDto> Paragraphs { get; set; } = new();
+        public List<CreateDynamicTableDto> Tables { get; set; } = new();
     }
 }

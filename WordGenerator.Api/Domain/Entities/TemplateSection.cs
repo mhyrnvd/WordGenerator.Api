@@ -13,5 +13,8 @@
 
         public ICollection<SectionParagraph> Paragraphs { get; set; }
             = new List<SectionParagraph>();
+
+        // اضافه کردن جداول به سکشن
+        public ICollection<DynamicTable> Tables { get; set; } = new List<DynamicTable>();
     }
 }

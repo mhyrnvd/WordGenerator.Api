@@ -11,5 +11,8 @@
 
         public ICollection<CoverPageItem> Items { get; set; }
             = new List<CoverPageItem>();
+
+        // اضافه کردن جداول به کاورپیج
+        public ICollection<DynamicTable> Tables { get; set; } = new List<DynamicTable>();
     }
 }

@@ -6,5 +6,7 @@
 
         public List<CreateCoverPageItemDto> Items { get; set; }
             = new();
+
+        public List<CreateDynamicTableDto> Tables { get; set; } = new();
     }
 }
