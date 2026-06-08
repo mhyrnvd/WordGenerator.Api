@@ -106,7 +106,7 @@ namespace WordGenerator.Api.Application.Services
             if (!string.IsNullOrWhiteSpace(cover.Title))
             {
                 paragraph.Append(
-                    CreateRun(PrepareRTLText(cover.Title), true, true),
+                    CreateRunForCover(PrepareRTLText(cover.Title), true, true),
                     new Run(new Break())
                 );
             }
@@ -115,31 +115,31 @@ namespace WordGenerator.Api.Application.Services
             {
                 // اضافه کردن Label
                 paragraph.Append(
-                    CreateRun(PrepareRTLText(":" + item.Label), true, false),
+                    CreateRunForCover(PrepareRTLText(item.Label + ":"), true, false),
                     new Run(new Break())
                 );
 
                 // آماده‌سازی متن Value با تشخیص خودکار زبان
                 var runs = new List<Run>();
                 var current = new List<char>();
-                bool? currentIsEnglish = null;
+                bool? currentIsPersian = null;
 
                 var preparedText = PrepareRTLText(item.Value);
 
                 foreach (var c in preparedText)
                 {
-                    bool isEng = IsEnglish(c);
+                    bool isPersian = !IsEnglish(c); // اگر انگلیسی نباشد، فارسی است
 
-                    if (currentIsEnglish == null)
+                    if (currentIsPersian == null)
                     {
-                        currentIsEnglish = isEng;
+                        currentIsPersian = isPersian;
                     }
 
-                    if (currentIsEnglish != isEng)
+                    if (currentIsPersian != isPersian)
                     {
-                        runs.Add(CreateRun(new string(current.ToArray()), currentIsEnglish.Value, false));
+                        runs.Add(CreateRunForCover(new string(current.ToArray()), currentIsPersian.Value, false));
                         current.Clear();
-                        currentIsEnglish = isEng;
+                        currentIsPersian = isPersian;
                     }
 
                     current.Add(c);
@@ -147,30 +147,30 @@ namespace WordGenerator.Api.Application.Services
 
                 if (current.Count > 0)
                 {
-                    runs.Add(CreateRun(new string(current.ToArray()), currentIsEnglish ?? false, false));
+                    runs.Add(CreateRunForCover(new string(current.ToArray()), currentIsPersian ?? false, false));
                 }
 
                 // اضافه کردن runs به پاراگراف
                 paragraph.Append(runs);
 
-                // اضافه کردن Break بعد از Value (حالا این Break اجرا می‌شود)
+                // اضافه کردن Break بعد از Value
                 paragraph.Append(new Run(new Break()));
             }
 
             return paragraph;
         }
 
-        private Run CreateRun(string text, bool isPersian, bool isTitle)
+        private Run CreateRunForCover(string text, bool isPersian, bool isTitle)
         {
             return new Run(
                 new RunProperties(
                     new RunFonts
                     {
-                        Ascii = !isPersian ? "B Nazanin" : "Times New Roman",
-                        HighAnsi = !isPersian ? "B Nazanin" : "Times New Roman",
-                        ComplexScript = !isPersian ? "B Nazanin" : "Times New Roman"
+                        Ascii = isPersian ? "B Nazanin" : "Times New Roman",
+                        HighAnsi = isPersian ? "B Nazanin" : "Times New Roman",
+                        ComplexScript = isPersian ? "B Nazanin" : "Times New Roman"
                     },
-                    new FontSize { Val = isTitle ? "32" : !isPersian ? "32" : "28" },
+                    new FontSize { Val = isPersian ? "32" : "28" },
                     new Bold()
                 ),
                 new Text(text)
