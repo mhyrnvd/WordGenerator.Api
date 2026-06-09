@@ -144,10 +144,9 @@ namespace WordGenerator.Api.Application.Services
                     new InsideHorizontalBorder { Val = BorderValues.Single, Size = 2, Color = "000000" },
                     new InsideVerticalBorder { Val = BorderValues.Single, Size = 2, Color = "000000" }
                 ),
-                new TableWidth { Width = "5000", Type = TableWidthUnitValues.Dxa },
+                new TableWidth { Width = "100%", Type = TableWidthUnitValues.Pct },
                 new TableLayout { Type = TableLayoutValues.Autofit },
-                new Justification { Val = JustificationValues.Center }, // به جای TableAlignment
-                new TableLook { Val = "04A0" }
+                new Justification { Val = JustificationValues.Center }
             );
 
             table.AppendChild(tableProps);
@@ -235,7 +234,13 @@ namespace WordGenerator.Api.Application.Services
             );
 
             // هدر با فونت بولد و سایز 11
-            paragraph.Append(CreateTableCellRun(text, true, true));
+            paragraph.Append(
+                CreateTableCellRun(
+                    PrepareRTLText(text),
+                    true,
+                    true
+                )
+            );
             cell.Append(paragraph);
 
             var cellProps = new TableCellProperties(
@@ -364,7 +369,12 @@ namespace WordGenerator.Api.Application.Services
             if (string.IsNullOrWhiteSpace(text))
                 return text;
 
-            // اضافه کردن کاراکترهای RLE و PDF برای نمایش درست متن مختلط
+            text = Regex.Replace(
+                text,
+                @"\((.*?)\)",
+                m => "\u200F)" + m.Groups[1].Value + "(\u200F"
+            );
+
             return "\u202B" + text + "\u202C";
         }
 
@@ -550,23 +560,23 @@ namespace WordGenerator.Api.Application.Services
             stylesPart.Styles = styles;
         }
 
-private bool IsEnglish(char c)
-{
-    // حروف انگلیسی
-    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
-        return true;
+        private bool IsEnglish(char c)
+        {
+            // حروف انگلیسی
+            if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+                return true;
     
-    // اعداد انگلیسی
-    if (c >= '0' && c <= '9')
-        return true;
+            // اعداد انگلیسی
+            if (c >= '0' && c <= '9')
+                return true;
     
-    // کاراکترهای پرانتز و علائم انگلیسی
-    return c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' ||
-           c == '.' || c == ',' || c == ';' || c == ':' || c == '!' || c == '?' ||
-           c == '@' || c == '#' || c == '$' || c == '%' || c == '^' || c == '&' ||
-           c == '*' || c == '+' || c == '=' || c == '<' || c == '>' || c == '/' ||
-           c == '\\' || c == '|' || c == '~' || c == '`' || c == '_' || c == '-'; // فاصله هم جزو انگلیسی محسوب شود
-}
+            // کاراکترهای پرانتز و علائم انگلیسی
+            return /*c == '(' || c == ')' || */c == '[' || c == ']' || c == '{' || c == '}' ||
+                   c == '.' || c == ',' || c == ';' || c == ':' || c == '!' || c == '?' ||
+                   c == '@' || c == '#' || c == '$' || c == '%' || c == '^' || c == '&' ||
+                   c == '*' || c == '+' || c == '=' || c == '<' || c == '>' || c == '/' ||
+                   c == '\\' || c == '|' || c == '~' || c == '`' || c == '_' || c == '-'; // فاصله هم جزو انگلیسی محسوب شود
+        }
 
         private Paragraph CreateParagraph(string text)
         {
