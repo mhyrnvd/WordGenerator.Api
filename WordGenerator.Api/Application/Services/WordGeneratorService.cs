@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
+using WordGenerator.Api.Application.DTOs;
 using WordGenerator.Api.Application.Requests;
 using WordGenerator.Api.Domain.Entities;
 using WordGenerator.Api.Infra.Context;
@@ -36,6 +37,199 @@ namespace WordGenerator.Api.Application.Services
         //    settingsPart.Settings.Append(new UpdateFieldsOnOpen { Val = true });
         //    settingsPart.Settings.Save();
         //}
+
+        public byte[] Generate(DocumentGenerationDto document)
+        {
+            using var ms = new MemoryStream();
+
+            using (var doc = WordprocessingDocument.Create(ms, WordprocessingDocumentType.Document))
+            {
+                var mainPart = doc.AddMainDocumentPart();
+                mainPart.Document = new Document();
+
+                AddStylesToDocument(mainPart);
+                var body = new Body();
+
+                // Cover Page
+                if (document.CoverPage != null)
+                {
+                    body.Append(CreateCoverPage(document.CoverPage));
+
+                    foreach (var table in document.CoverPage.Tables.OrderBy(x => x.Order))
+                    {
+                        body.Append(CreateTable(table));
+                        body.Append(new Paragraph(new Run(new Break())));
+                    }
+
+                    body.Append(new Paragraph(new Run(new Break() { Type = BreakValues.Page })));
+                }
+
+                // Table of Contents
+                if (document.IncludeTableOfContents)
+                {
+                    body.Append(CreateHeading("فهرست مطالب"));
+                    body.Append(CreateTableOfContents());
+                    body.Append(new Paragraph(new Run(new Text(""))));
+                    body.Append(new Paragraph(new Run(new Break() { Type = BreakValues.Page })));
+                }
+
+                // Sections
+                foreach (var section in document.Sections.OrderBy(x => x.Order))
+                {
+                    body.Append(CreateHeading(section.Title));
+
+                    foreach (var paragraph in section.Paragraphs.OrderBy(x => x.Order))
+                    {
+                        body.Append(CreateParagraph(paragraph.Text));
+                    }
+
+                    foreach (var table in section.Tables.OrderBy(x => x.Order))
+                    {
+                        body.Append(CreateTable(table));
+                        body.Append(new Paragraph(new Run(new Break())));
+                    }
+                }
+
+                mainPart.Document.Append(body);
+                mainPart.Document.Save();
+            }
+
+            return ms.ToArray();
+        }
+
+        private Docx.Table CreateTable(TableDataDto tableData)
+        {
+            var table = new Docx.Table();
+
+            var tableProps = new TableProperties(
+                new TableBorders(
+                    new TopBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
+                    new BottomBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
+                    new LeftBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
+                    new RightBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
+                    new InsideHorizontalBorder { Val = BorderValues.Single, Size = 2, Color = "000000" },
+                    new InsideVerticalBorder { Val = BorderValues.Single, Size = 2, Color = "000000" }
+                ),
+                new TableWidth { Width = "100%", Type = TableWidthUnitValues.Pct },
+                new TableLayout { Type = TableLayoutValues.Autofit },
+                new Justification { Val = JustificationValues.Center }
+            );
+            table.Append(tableProps);
+
+            var columns = tableData.Columns.OrderBy(x => x.Order).ToList();
+
+            // محاسبه عرض ستون‌ها
+            var totalWidth = 5000;
+            var fixedWidthColumns = columns.Where(c => c.Width > 0).ToList();
+            var autoWidthColumns = columns.Where(c => c.Width == 0).ToList();
+            var fixedWidth = fixedWidthColumns.Sum(c => c.Width * 50);
+            var remainingWidth = totalWidth - fixedWidth;
+            var autoWidth = autoWidthColumns.Count > 0 ? remainingWidth / autoWidthColumns.Count : 0;
+
+            // ردیف هدر
+            var headerRow = new Docx.TableRow();
+            if (tableData.ShowRowNumbers)
+            {
+                headerRow.Append(CreateHeaderCell(tableData.RowNumberHeader ?? "ردیف", true, 10));
+            }
+            foreach (var column in columns)
+            {
+                var columnWidth = column.Width > 0 ? column.Width :
+                    (autoWidthColumns.Contains(column) ? autoWidth / 50 : 20);
+                headerRow.Append(CreateHeaderCell(column.Header, true, columnWidth));
+            }
+            table.Append(headerRow);
+
+            // ردیف‌های داده - با استفاده از ساختار Cells
+            foreach (var row in tableData.Rows.OrderBy(x => x.RowNumber))
+            {
+                var dataRow = new Docx.TableRow();
+
+                if (tableData.ShowRowNumbers)
+                {
+                    dataRow.Append(CreateDataCell(row.RowNumber.ToString()));
+                }
+
+                // مرتب کردن سلول‌ها بر اساس Order ستون‌ها
+                foreach (var column in columns)
+                {
+                    var cell = row.Cells.FirstOrDefault(c => c.ColumnId == column.Id);
+                    var cellValue = cell?.Value ?? "";
+                    dataRow.Append(CreateDataCell(cellValue));
+                }
+
+                table.Append(dataRow);
+            }
+
+            return table;
+        }
+
+        private Paragraph CreateCoverPage(CoverPageDataDto cover)
+        {
+            var paragraph = new Paragraph(
+                new ParagraphProperties(
+                    new Justification { Val = JustificationValues.Center },
+                    new BiDi(),
+                    new SpacingBetweenLines { After = "300" }
+                )
+            );
+
+            if (!string.IsNullOrWhiteSpace(cover.Title))
+            {
+                paragraph.Append(
+                    CreateRunForCover(PrepareRTLText(cover.Title), true, true),
+                    new Run(new Break())
+                );
+            }
+
+            foreach (var item in cover.Items.OrderBy(x => x.Order))
+            {
+                paragraph.Append(
+                    CreateRunForCover(PrepareRTLText(item.Label + ":"), true, false),
+                    new Run(new Break())
+                );
+
+                var runs = CreateRunsForText(PrepareRTLText(item.Value));
+                paragraph.Append(runs);
+                paragraph.Append(new Run(new Break()));
+            }
+
+            return paragraph;
+        }
+
+        private List<Run> CreateRunsForText(string text)
+        {
+            var runs = new List<Run>();
+            var current = new List<char>();
+            bool? currentIsPersian = null;
+
+            foreach (var c in text)
+            {
+                bool isPersian = !IsEnglish(c);
+
+                if (currentIsPersian == null)
+                {
+                    currentIsPersian = isPersian;
+                }
+
+                if (currentIsPersian != isPersian)
+                {
+                    if (current.Count > 0)
+                        runs.Add(CreateRunForCover(new string(current.ToArray()), currentIsPersian.Value, false));
+                    current.Clear();
+                    currentIsPersian = isPersian;
+                }
+
+                current.Add(c);
+            }
+
+            if (current.Count > 0)
+            {
+                runs.Add(CreateRunForCover(new string(current.ToArray()), currentIsPersian ?? false, false));
+            }
+
+            return runs;
+        }
 
         public async Task<byte[]> GenerateAsync(GenerateDocumentRequest request)
         {
