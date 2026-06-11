@@ -23,7 +23,7 @@ namespace WordGenerator.Api.Application.Services
         private const string MasterHeaderFontSize = "32";     // 16 pt for Master Section
         private const string SubHeaderFontSize = "28";        // 14 pt for Sub Section
         private const string TableHeaderFontSize = "22";
-        private const string CoverTitleFontSize = "44";       // 22 pt for cover title
+        private const string CoverTitleFontSize = "32";       // 16 pt for cover title
 
         public WordGeneratorService(AppDbContext context)
         {
@@ -464,24 +464,27 @@ namespace WordGenerator.Api.Application.Services
         {
             var table = new Docx.Table();
 
-            var tableProps = new TableProperties(
-                new TableBorders(
-                    new TopBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
-                    new BottomBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
-                    new LeftBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
-                    new RightBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
-                    new InsideHorizontalBorder { Val = BorderValues.Single, Size = 2, Color = "000000" },
-                    new InsideVerticalBorder { Val = BorderValues.Single, Size = 2, Color = "000000" }
-                ),
-                new TableWidth { Width = "100%", Type = TableWidthUnitValues.Pct },
-                new TableLayout { Type = TableLayoutValues.Autofit },
-                new Justification { Val = JustificationValues.Center }
+            // تنظیم Borderهای جدول
+            var tableProperties = new TableProperties();
+            var tableBorders = new TableBorders(
+                new TopBorder { Val = BorderValues.Single, Size = 12, Color = "2E75B6" },     // border بالا پررنگ
+                new BottomBorder { Val = BorderValues.Single, Size = 12, Color = "2E75B6" },  // border پایین پررنگ
+                new LeftBorder { Val = BorderValues.Nil },
+                new RightBorder { Val = BorderValues.Nil },
+                new InsideHorizontalBorder { Val = BorderValues.Single, Size = 1, Color = "AAAAAA" },
+                new InsideVerticalBorder { Val = BorderValues.Nil }
             );
-            table.Append(tableProps);
+
+            tableProperties.Append(tableBorders);
+            tableProperties.Append(new TableWidth { Width = "100%", Type = TableWidthUnitValues.Pct });
+            tableProperties.Append(new TableLayout { Type = TableLayoutValues.Autofit });
+            tableProperties.Append(new Justification { Val = JustificationValues.Center });
+
+            table.Append(tableProperties);
 
             var columns = tableData.Columns.OrderBy(x => x.Order).ToList();
 
-            // Calculate column widths
+            // محاسبه عرض ستون‌ها
             var totalWidth = 5000;
             var fixedWidthColumns = columns.Where(c => c.Width > 0).ToList();
             var autoWidthColumns = columns.Where(c => c.Width == 0).ToList();
@@ -489,7 +492,7 @@ namespace WordGenerator.Api.Application.Services
             var remainingWidth = totalWidth - fixedWidth;
             var autoWidth = autoWidthColumns.Count > 0 ? remainingWidth / autoWidthColumns.Count : 0;
 
-            // Header row
+            // Header row (بدون رنگ پس‌زمینه)
             var headerRow = new Docx.TableRow();
             headerRow.Append(new TableRowProperties(new TableRowHeight { Val = 400, HeightType = HeightRuleValues.AtLeast }));
 
@@ -505,30 +508,34 @@ namespace WordGenerator.Api.Application.Services
             }
             table.Append(headerRow);
 
-            // Data rows
+            // Data rows - با رنگ‌بندی ردیف‌های فرد و زوج
+            int rowIndex = 0;
             foreach (var row in tableData.Rows.OrderBy(x => x.RowNumber))
             {
                 var dataRow = new Docx.TableRow();
                 dataRow.Append(new TableRowProperties(new TableRowHeight { Val = 300, HeightType = HeightRuleValues.AtLeast }));
 
+                // تعیین رنگ پس‌زمینه برای این ردیف
+                string rowBackgroundColor = (rowIndex % 2 == 0) ? "DAE9F7" : null;  // ردیف‌های فرد (0,2,4,...) رنگ بگیرند
+
                 if (tableData.ShowRowNumbers)
                 {
-                    dataRow.Append(CreateDataCell(row.RowNumber.ToString()));
+                    dataRow.Append(CreateDataCell(row.RowNumber.ToString(), rowBackgroundColor));
                 }
 
                 foreach (var column in columns)
                 {
                     var cell = row.Cells.FirstOrDefault(c => c.ColumnId == column.Id);
                     var cellValue = cell?.Value ?? "";
-                    dataRow.Append(CreateDataCell(cellValue));
+                    dataRow.Append(CreateDataCell(cellValue, rowBackgroundColor));
                 }
 
                 table.Append(dataRow);
+                rowIndex++;
             }
 
             return table;
         }
-
         #endregion
 
         #region Table Creation - Entity Version
@@ -766,15 +773,23 @@ namespace WordGenerator.Api.Application.Services
                     new BottomMargin { Width = "100", Type = TableWidthUnitValues.Dxa },
                     new LeftMargin { Width = "100", Type = TableWidthUnitValues.Dxa },
                     new RightMargin { Width = "100", Type = TableWidthUnitValues.Dxa }
-                ),
-                new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = "E7E6E6" }
+                )
             );
+
+            // اضافه کردن رنگ سفید به هدرها
+            var shading = new Shading
+            {
+                Val = ShadingPatternValues.Clear,
+                Color = "auto",
+                Fill = "FFFFFF"  // رنگ سفید برای هدرها
+            };
+            cellProps.Append(shading);
 
             cell.Append(cellProps);
             return cell;
         }
 
-        private Docx.TableCell CreateDataCell(string text)
+        private Docx.TableCell CreateDataCell(string text, string backgroundColor = null)
         {
             var cell = new Docx.TableCell();
 
@@ -800,10 +815,21 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
+            // اضافه کردن رنگ پس‌زمینه اگر مقدار داده شده باشد
+            if (!string.IsNullOrEmpty(backgroundColor))
+            {
+                var shading = new Shading
+                {
+                    Val = ShadingPatternValues.Clear,
+                    Color = "auto",
+                    Fill = backgroundColor
+                };
+                cellProps.Append(shading);
+            }
+
             cell.Append(cellProps);
             return cell;
         }
-
         #endregion
 
         #region Run Creation Helpers
@@ -1044,7 +1070,7 @@ namespace WordGenerator.Api.Application.Services
 
             var heading2ParaProps = new Docx.StyleParagraphProperties(
                 new ParagraphStyleId { Val = "Heading2" },
-                new Justification { Val = JustificationValues.Left },
+                new Justification { Val = JustificationValues.Right },
                 new SpacingBetweenLines { After = "120", Line = "240" },
                 new OutlineLevel { Val = 1 }
             );
