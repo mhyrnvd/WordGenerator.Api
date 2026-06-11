@@ -8,7 +8,10 @@
 
         public CoverPageTemplate? CoverPage { get; set; }
 
-        public ICollection<TemplateSection> Sections { get; set; }
-            = new List<TemplateSection>();
+        // بخش‌های قدیمی (برای سازگاری با عقب)
+        public ICollection<TemplateSection> Sections { get; set; } = new List<TemplateSection>();
+
+        // بخش‌های جدید سلسله‌مراتبی
+        public ICollection<MasterSection> MasterSections { get; set; } = new List<MasterSection>();
     }
 }
