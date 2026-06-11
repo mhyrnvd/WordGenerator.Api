@@ -47,7 +47,7 @@ namespace WordGenerator.Api.Migrations
 
                     b.HasIndex("CoverPageTemplateId");
 
-                    b.ToTable("CoverPageItems");
+                    b.ToTable("CoverPageItems", (string)null);
                 });
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.CoverPageTemplate", b =>
@@ -69,7 +69,7 @@ namespace WordGenerator.Api.Migrations
                     b.HasIndex("DocumentTemplateId")
                         .IsUnique();
 
-                    b.ToTable("CoverPageTemplates");
+                    b.ToTable("CoverPageTemplates", (string)null);
                 });
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.DocumentTemplate", b =>
@@ -86,7 +86,7 @@ namespace WordGenerator.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DocumentTemplates");
+                    b.ToTable("DocumentTemplates", (string)null);
                 });
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.DynamicTable", b =>
@@ -151,7 +151,7 @@ namespace WordGenerator.Api.Migrations
 
                     b.HasIndex("TemplateSectionId");
 
-                    b.ToTable("SectionParagraphs");
+                    b.ToTable("SectionParagraphs", (string)null);
                 });
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.TableColumnDefinition", b =>
@@ -262,7 +262,7 @@ namespace WordGenerator.Api.Migrations
 
                     b.HasIndex("TemplateId");
 
-                    b.ToTable("TemplateSections");
+                    b.ToTable("TemplateSections", (string)null);
                 });
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.CoverPageItem", b =>

@@ -12,7 +12,8 @@ namespace WordGenerator.Api.Infra.Implementation.Configs
             builder
                 .HasOne(x => x.CoverPage)
                 .WithOne(x => x.DocumentTemplate)
-                .HasForeignKey<CoverPageTemplate>(x => x.DocumentTemplateId);
+                .HasForeignKey<CoverPageTemplate>(x => x.DocumentTemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

@@ -47,20 +47,76 @@ namespace WordGenerator.Api.Infra.Context
                 .HasMany(x => x.Cells)
                 .WithOne(x => x.Row)
                 .HasForeignKey(x => x.TableDataRowId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // TableColumnDefinition -> TableDataCell (بدون Cascade)
             modelBuilder.Entity<TableColumnDefinition>()
                 .HasMany(x => x.Cells)
                 .WithOne(x => x.Column)
                 .HasForeignKey(x => x.TableColumnDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TemplateSection>()
+       .HasOne(s => s.Template)
+       .WithMany(t => t.Sections)
+       .HasForeignKey(s => s.TemplateId)
+       .OnDelete(DeleteBehavior.Cascade);
+
+            // رابطه TemplateSection با SectionParagraph - Cascade Delete
+            modelBuilder.Entity<SectionParagraph>()
+                .HasOne(p => p.Section)
+                .WithMany(s => s.Paragraphs)
+                .HasForeignKey(p => p.TemplateSectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // رابطه TemplateSection با DynamicTable - Cascade Delete
+            modelBuilder.Entity<DynamicTable>()
+                .HasOne(t => t.Section)
+                .WithMany(s => s.Tables)
+                .HasForeignKey(t => t.TemplateSectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // رابطه DynamicTable با TableColumnDefinition - Cascade Delete
+            modelBuilder.Entity<TableColumnDefinition>()
+                .HasOne(c => c.Table)
+                .WithMany(t => t.Columns)
+                .HasForeignKey(c => c.DynamicTableId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // رابطه DynamicTable با TableDataRow - Cascade Delete
+            modelBuilder.Entity<TableDataRow>()
+                .HasOne(r => r.Table)
+                .WithMany(t => t.Rows)
+                .HasForeignKey(r => r.DynamicTableId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // رابطه TableDataRow با TableDataCell - Cascade Delete
+            modelBuilder.Entity<TableDataCell>()
+                .HasOne(c => c.Row)
+                .WithMany(r => r.Cells)
+                .HasForeignKey(c => c.TableDataRowId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // رابطه TableColumnDefinition با TableDataCell - Restrict (برای جلوگیری از حذف ستون‌هایی که سلول دارند)
+            modelBuilder.Entity<TableDataCell>()
+                .HasOne(c => c.Column)
+                .WithMany(c => c.Cells)
+                .HasForeignKey(c => c.TableColumnDefinitionId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            foreach (var relationship in modelBuilder.Model.GetEntityTypes()
-    .SelectMany(e => e.GetForeignKeys()))
-            {
-                relationship.DeleteBehavior = DeleteBehavior.Restrict;
-            }
+            // رابطه CoverPageTemplate با CoverPageItem - Cascade Delete
+            modelBuilder.Entity<CoverPageItem>()
+                .HasOne(i => i.CoverPageTemplate)
+                .WithMany(c => c.Items)
+                .HasForeignKey(i => i.CoverPageTemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // رابطه CoverPageTemplate با DynamicTable - Cascade Delete
+            modelBuilder.Entity<DynamicTable>()
+                .HasOne(t => t.CoverPage)
+                .WithMany(c => c.Tables)
+                .HasForeignKey(t => t.CoverPageTemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
