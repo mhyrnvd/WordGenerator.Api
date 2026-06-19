@@ -11,5 +11,6 @@
 
         // بخش‌های جدید سلسله‌مراتبی
         public List<CreateMasterSectionDto> MasterSections { get; set; } = new();
+        //public List<ImageItemDto>? CoverPageImages { get; set; }
     }
 }

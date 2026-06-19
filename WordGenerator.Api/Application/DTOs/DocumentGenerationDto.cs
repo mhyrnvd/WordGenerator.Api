@@ -26,6 +26,7 @@ namespace WordGenerator.Api.Application.DTOs
         public List<SubSectionDataDto> SubSections { get; set; } = new();
         public List<ParagraphDataDto> Paragraphs { get; set; } = new();
         public List<TableDataDto> Tables { get; set; } = new();
+        public List<ImageItemDto> Images { get; set; } = new();
     }
 
     /// <summary>
@@ -40,6 +41,7 @@ namespace WordGenerator.Api.Application.DTOs
 
         public List<ParagraphDataDto> Paragraphs { get; set; } = new();
         public List<TableDataDto> Tables { get; set; } = new();
+        public List<ImageItemDto> Images { get; set; } = new();
     }
 
     public class CoverPageDataDto
@@ -48,6 +50,7 @@ namespace WordGenerator.Api.Application.DTOs
         public string? Title { get; set; }
         public List<CoverPageItemDto> Items { get; set; } = new();
         public List<TableDataDto> Tables { get; set; } = new();
+        public List<ImageItemDto> Images { get; set; } = new();
     }
 
     public class CoverPageItemDto
@@ -65,6 +68,7 @@ namespace WordGenerator.Api.Application.DTOs
         public int Order { get; set; }
         public List<ParagraphDataDto> Paragraphs { get; set; } = new();
         public List<TableDataDto> Tables { get; set; } = new();
+        public List<ImageItemDto> Images { get; set; } = new();
     }
 
     public class ParagraphDataDto

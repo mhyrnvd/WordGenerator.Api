@@ -48,5 +48,6 @@ namespace WordGenerator.Api.Domain.Entities
         /// جداول مستقیم زیر بخش اصلی (اختیاری)
         /// </summary>
         public ICollection<DynamicTable> Tables { get; set; } = new List<DynamicTable>();
+        public ICollection<ImageItem> Images { get; set; } = new List<ImageItem>();
     }
 }

@@ -20,6 +20,7 @@ namespace WordGenerator.Api.Infra.Context
         public DbSet<SubSection> SubSections { get; set; }
         public DbSet<MasterSectionParagraph> MasterSectionParagraphs { get; set; }
         public DbSet<SubSectionParagraph> SubSectionParagraphs { get; set; }
+        public DbSet<ImageItem> Images { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -36,6 +37,7 @@ namespace WordGenerator.Api.Infra.Context
             modelBuilder.ApplyConfiguration(new SubSectionConfiguration());
             modelBuilder.ApplyConfiguration(new MasterSectionParagraphConfiguration());
             modelBuilder.ApplyConfiguration(new SubSectionParagraphConfiguration());
+            modelBuilder.ApplyConfiguration(new ImageItemConfiguration());
 
             modelBuilder.Entity<DynamicTable>()
                .HasMany(x => x.Columns)

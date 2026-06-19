@@ -18,6 +18,7 @@ namespace WordGenerator.Api.Application.DTOs
 
         // جداول مستقیم
         public List<CreateDynamicTableDto> Tables { get; set; } = new();
+        public List<ImageItemDto> Images { get; set; } = new();
     }
 
     public class CreateSubSectionDto
@@ -31,6 +32,7 @@ namespace WordGenerator.Api.Application.DTOs
 
         // جداول
         public List<CreateDynamicTableDto> Tables { get; set; } = new();
+        public List<ImageItemDto> Images { get; set; } = new();
     }
 
     public class CreateMasterParagraphDto

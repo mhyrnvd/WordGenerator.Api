@@ -14,5 +14,6 @@
 
         // اضافه کردن جداول به کاورپیج
         public ICollection<DynamicTable> Tables { get; set; } = new List<DynamicTable>();
+        public ICollection<ImageItem> Images { get; set; } = new List<ImageItem>();
     }
 }

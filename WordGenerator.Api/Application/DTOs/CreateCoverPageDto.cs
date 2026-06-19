@@ -8,5 +8,6 @@
             = new();
 
         public List<CreateDynamicTableDto> Tables { get; set; } = new();
+        public List<ImageItemDto> Images { get; set; } = new();
     }
 }
