@@ -9,5 +9,6 @@
 
         public List<CreateDynamicTableDto> Tables { get; set; } = new();
         public List<ImageItemDto> Images { get; set; } = new();
+        public List<ImageGroupDto> ImageGroups { get; set; } = new();
     }
 }

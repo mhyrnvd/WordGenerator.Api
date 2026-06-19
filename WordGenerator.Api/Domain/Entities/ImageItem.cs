@@ -10,6 +10,9 @@
         public double Width { get; set; } = 500;
         public double Height { get; set; } = 0;
 
+        public long? ImageGroupId { get; set; }
+        public virtual ImageGroup? ImageGroup { get; set; }
+
         public long? TemplateSectionId { get; set; }
         public virtual TemplateSection? Section { get; set; }
 

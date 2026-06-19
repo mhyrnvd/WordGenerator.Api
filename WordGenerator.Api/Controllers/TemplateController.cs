@@ -39,15 +39,21 @@ namespace WordGenerator.Api.Controllers
                             Value = x.Value,
                             Order = x.Order
                         }).ToList(),
-                        Images = dto.CoverPage.Images?.Select(x => new ImageItem
+                        ImageGroups = dto.CoverPage.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
                         {
-                            FileName = x.FileName,
-                            Caption = x.Caption,
-                            Order = x.Order,
-                            Width = x.Width,
-                            Height = x.Height,
-                            ImageData = string.IsNullOrEmpty(x.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(x.ImageBase64)
-                        }).ToList() ?? new List<ImageItem>(),
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         Tables = dto.CoverPage.Tables.Select(x => new DynamicTable
                         {
                             Title = x.Title,
@@ -72,15 +78,21 @@ namespace WordGenerator.Api.Controllers
                             Text = p.Text,
                             Order = p.Order
                         }).ToList(),
-                        Images = x.Images?.Select(img => new ImageItem
+                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
                         {
-                            FileName = img.FileName,
-                            Caption = img.Caption,
-                            Order = img.Order,
-                            Width = img.Width,
-                            Height = img.Height,
-                            ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                        }).ToList() ?? new List<ImageItem>(),
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         SubSections = x.SubSections.OrderBy(s => s.Order).Select(s => new SubSection
                         {
                             Title = s.Title,
@@ -91,15 +103,21 @@ namespace WordGenerator.Api.Controllers
                                 Text = p.Text,
                                 Order = p.Order
                             }).ToList(),
-                            Images = s.Images?.Select(img => new ImageItem
+                            ImageGroups = s.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
                             {
-                                FileName = img.FileName,
-                                Caption = img.Caption,
-                                Order = img.Order,
-                                Width = img.Width,
-                                Height = img.Height,
-                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                            }).ToList() ?? new List<ImageItem>(),
+                                Title = g.Title,
+                                Order = g.Order,
+                                ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                                Images = g.Images.Select(img => new ImageItem
+                                {
+                                    FileName = img.FileName,
+                                    Caption = img.Caption,
+                                    Order = img.Order,
+                                    Width = img.Width,
+                                    Height = img.Height,
+                                    ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                                }).ToList()
+                            }).ToList() ?? new List<ImageGroup>(),
                             Tables = s.Tables.Select(t => new DynamicTable
                             {
                                 Title = t.Title,
@@ -137,15 +155,21 @@ namespace WordGenerator.Api.Controllers
                             Text = p.Text,
                             Order = p.Order
                         }).ToList(),
-                        Images = x.Images?.Select(img => new ImageItem
+                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
                         {
-                            FileName = img.FileName,
-                            Caption = img.Caption,
-                            Order = img.Order,
-                            Width = img.Width,
-                            Height = img.Height,
-                            ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                        }).ToList() ?? new List<ImageItem>(),
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         Tables = x.Tables.Select(t => new DynamicTable
                         {
                             Title = t.Title,
@@ -306,7 +330,8 @@ namespace WordGenerator.Api.Controllers
                 .Include(x => x.CoverPage)
                     .ThenInclude(x => x.Items)
                 .Include(x => x.CoverPage)
-                    .ThenInclude(x => x.Images)
+                    .ThenInclude(x => x.ImageGroups)
+                        .ThenInclude(g => g.Images)
                 .Include(x => x.CoverPage)
                     .ThenInclude(x => x.Tables)
                         .ThenInclude(t => t.Columns)
@@ -318,13 +343,15 @@ namespace WordGenerator.Api.Controllers
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.Paragraphs)
                 .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.Images)
+                    .ThenInclude(m => m.ImageGroups)
+                        .ThenInclude(g => g.Images)
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.SubSections)
                         .ThenInclude(s => s.Paragraphs)
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.SubSections)
-                        .ThenInclude(s => s.Images)
+                        .ThenInclude(s => s.ImageGroups)
+                            .ThenInclude(g => g.Images)
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.SubSections)
                         .ThenInclude(s => s.Tables)
@@ -346,7 +373,8 @@ namespace WordGenerator.Api.Controllers
                 .Include(x => x.Sections)
                     .ThenInclude(s => s.Paragraphs)
                 .Include(x => x.Sections)
-                    .ThenInclude(s => s.Images)
+                    .ThenInclude(s => s.ImageGroups)
+                        .ThenInclude(g => g.Images)
                 .Include(x => x.Sections)
                     .ThenInclude(s => s.Tables)
                         .ThenInclude(t => t.Columns)
@@ -376,15 +404,22 @@ namespace WordGenerator.Api.Controllers
                         x.Value,
                         x.Order
                     }),
-                    Images = template.CoverPage.Images.OrderBy(x => x.Order).Select(x => new
+                    ImageGroups = template.CoverPage.ImageGroups.OrderBy(g => g.Order).Select(g => new
                     {
-                        x.Id,
-                        x.FileName,
-                        x.Caption,
-                        x.Order,
-                        x.Width,
-                        x.Height,
-                        ImageBase64 = Convert.ToBase64String(x.ImageData)
+                        g.Id,
+                        g.Title,
+                        g.Order,
+                        g.ImagesPerRow,
+                        Images = g.Images.OrderBy(i => i.Order).Select(i => new
+                        {
+                            i.Id,
+                            i.FileName,
+                            i.Caption,
+                            i.Order,
+                            i.Width,
+                            i.Height,
+                            ImageBase64 = Convert.ToBase64String(i.ImageData)
+                        })
                     }),
                     Tables = template.CoverPage.Tables.OrderBy(x => x.Order).Select(x => new
                     {
@@ -431,15 +466,22 @@ namespace WordGenerator.Api.Controllers
                         p.Text,
                         p.Order
                     }),
-                    Images = x.Images.OrderBy(i => i.Order).Select(i => new
+                    ImageGroups = x.ImageGroups.OrderBy(g => g.Order).Select(g => new
                     {
-                        i.Id,
-                        i.FileName,
-                        i.Caption,
-                        i.Order,
-                        i.Width,
-                        i.Height,
-                        ImageBase64 = Convert.ToBase64String(i.ImageData)
+                        g.Id,
+                        g.Title,
+                        g.Order,
+                        g.ImagesPerRow,
+                        Images = g.Images.OrderBy(i => i.Order).Select(i => new
+                        {
+                            i.Id,
+                            i.FileName,
+                            i.Caption,
+                            i.Order,
+                            i.Width,
+                            i.Height,
+                            ImageBase64 = Convert.ToBase64String(i.ImageData)
+                        })
                     }),
                     SubSections = x.SubSections.OrderBy(s => s.Order).Select((s, subIndex) => new
                     {
@@ -454,15 +496,22 @@ namespace WordGenerator.Api.Controllers
                             p.Text,
                             p.Order
                         }),
-                        Images = s.Images.OrderBy(i => i.Order).Select(i => new
+                        ImageGroups = s.ImageGroups.OrderBy(g => g.Order).Select(g => new
                         {
-                            i.Id,
-                            i.FileName,
-                            i.Caption,
-                            i.Order,
-                            i.Width,
-                            i.Height,
-                            ImageBase64 = Convert.ToBase64String(i.ImageData)
+                            g.Id,
+                            g.Title,
+                            g.Order,
+                            g.ImagesPerRow,
+                            Images = g.Images.OrderBy(i => i.Order).Select(i => new
+                            {
+                                i.Id,
+                                i.FileName,
+                                i.Caption,
+                                i.Order,
+                                i.Width,
+                                i.Height,
+                                ImageBase64 = Convert.ToBase64String(i.ImageData)
+                            })
                         }),
                         Tables = s.Tables.OrderBy(t => t.Order).Select(t => new
                         {
@@ -538,15 +587,22 @@ namespace WordGenerator.Api.Controllers
                         p.Text,
                         p.Order
                     }),
-                    Images = x.Images.OrderBy(i => i.Order).Select(i => new
+                    ImageGroups = x.ImageGroups.OrderBy(g => g.Order).Select(g => new
                     {
-                        i.Id,
-                        i.FileName,
-                        i.Caption,
-                        i.Order,
-                        i.Width,
-                        i.Height,
-                        ImageBase64 = Convert.ToBase64String(i.ImageData)
+                        g.Id,
+                        g.Title,
+                        g.Order,
+                        g.ImagesPerRow,
+                        Images = g.Images.OrderBy(i => i.Order).Select(i => new
+                        {
+                            i.Id,
+                            i.FileName,
+                            i.Caption,
+                            i.Order,
+                            i.Width,
+                            i.Height,
+                            ImageBase64 = Convert.ToBase64String(i.ImageData)
+                        })
                     }),
                     Tables = x.Tables.OrderBy(t => t.Order).Select(t => new
                     {
@@ -614,7 +670,8 @@ namespace WordGenerator.Api.Controllers
                     .Include(x => x.CoverPage)
                         .ThenInclude(x => x.Items)
                     .Include(x => x.CoverPage)
-                        .ThenInclude(x => x.Images)
+                        .ThenInclude(x => x.ImageGroups)
+                            .ThenInclude(g => g.Images)
                     .Include(x => x.CoverPage)
                         .ThenInclude(x => x.Tables)
                             .ThenInclude(t => t.Columns)
@@ -625,13 +682,15 @@ namespace WordGenerator.Api.Controllers
                     .Include(x => x.MasterSections)
                         .ThenInclude(m => m.Paragraphs)
                     .Include(x => x.MasterSections)
-                        .ThenInclude(m => m.Images)
+                        .ThenInclude(m => m.ImageGroups)
+                            .ThenInclude(g => g.Images)
                     .Include(x => x.MasterSections)
                         .ThenInclude(m => m.SubSections)
                             .ThenInclude(s => s.Paragraphs)
                     .Include(x => x.MasterSections)
                         .ThenInclude(m => m.SubSections)
-                            .ThenInclude(s => s.Images)
+                            .ThenInclude(s => s.ImageGroups)
+                                .ThenInclude(g => g.Images)
                     .Include(x => x.MasterSections)
                         .ThenInclude(m => m.SubSections)
                             .ThenInclude(s => s.Tables)
@@ -651,7 +710,8 @@ namespace WordGenerator.Api.Controllers
                     .Include(x => x.Sections)
                         .ThenInclude(s => s.Paragraphs)
                     .Include(x => x.Sections)
-                        .ThenInclude(s => s.Images)
+                        .ThenInclude(s => s.ImageGroups)
+                            .ThenInclude(g => g.Images)
                     .Include(x => x.Sections)
                         .ThenInclude(s => s.Tables)
                             .ThenInclude(t => t.Columns)
@@ -757,19 +817,54 @@ namespace WordGenerator.Api.Controllers
                     if (section.Paragraphs.Any()) _context.SectionParagraphs.RemoveRange(section.Paragraphs);
                 await _context.SaveChangesAsync();
 
-                // ========== 6. Delete Images ==========
-                if (existingTemplate.CoverPage != null && existingTemplate.CoverPage.Images.Any())
-                    _context.Images.RemoveRange(existingTemplate.CoverPage.Images);
+                // ========== 6. Delete ImageGroups and Images ==========
+                if (existingTemplate.CoverPage != null && existingTemplate.CoverPage.ImageGroups.Any())
+                {
+                    foreach (var group in existingTemplate.CoverPage.ImageGroups)
+                    {
+                        if (group.Images.Any())
+                            _context.Images.RemoveRange(group.Images);
+                    }
+                    _context.ImageGroups.RemoveRange(existingTemplate.CoverPage.ImageGroups);
+                }
 
                 foreach (var master in existingTemplate.MasterSections)
                 {
-                    if (master.Images.Any()) _context.Images.RemoveRange(master.Images);
+                    if (master.ImageGroups.Any())
+                    {
+                        foreach (var group in master.ImageGroups)
+                        {
+                            if (group.Images.Any())
+                                _context.Images.RemoveRange(group.Images);
+                        }
+                        _context.ImageGroups.RemoveRange(master.ImageGroups);
+                    }
                     foreach (var sub in master.SubSections)
-                        if (sub.Images.Any()) _context.Images.RemoveRange(sub.Images);
+                    {
+                        if (sub.ImageGroups.Any())
+                        {
+                            foreach (var group in sub.ImageGroups)
+                            {
+                                if (group.Images.Any())
+                                    _context.Images.RemoveRange(group.Images);
+                            }
+                            _context.ImageGroups.RemoveRange(sub.ImageGroups);
+                        }
+                    }
                 }
 
                 foreach (var section in existingTemplate.Sections)
-                    if (section.Images.Any()) _context.Images.RemoveRange(section.Images);
+                {
+                    if (section.ImageGroups.Any())
+                    {
+                        foreach (var group in section.ImageGroups)
+                        {
+                            if (group.Images.Any())
+                                _context.Images.RemoveRange(group.Images);
+                        }
+                        _context.ImageGroups.RemoveRange(section.ImageGroups);
+                    }
+                }
                 await _context.SaveChangesAsync();
 
                 // ========== 7. Delete SubSections ==========
@@ -813,15 +908,21 @@ namespace WordGenerator.Api.Controllers
                             Value = x.Value,
                             Order = x.Order
                         }).ToList(),
-                        Images = dto.CoverPage.Images?.Select(x => new ImageItem
+                        ImageGroups = dto.CoverPage.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
                         {
-                            FileName = x.FileName,
-                            Caption = x.Caption,
-                            Order = x.Order,
-                            Width = x.Width,
-                            Height = x.Height,
-                            ImageData = string.IsNullOrEmpty(x.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(x.ImageBase64)
-                        }).ToList() ?? new List<ImageItem>(),
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         Tables = dto.CoverPage.Tables.Select(x => new DynamicTable
                         {
                             Title = x.Title,
@@ -846,15 +947,21 @@ namespace WordGenerator.Api.Controllers
                             Text = p.Text,
                             Order = p.Order
                         }).ToList(),
-                        Images = x.Images?.Select(img => new ImageItem
+                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
                         {
-                            FileName = img.FileName,
-                            Caption = img.Caption,
-                            Order = img.Order,
-                            Width = img.Width,
-                            Height = img.Height,
-                            ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                        }).ToList() ?? new List<ImageItem>(),
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         SubSections = x.SubSections.OrderBy(s => s.Order).Select(s => new SubSection
                         {
                             Title = s.Title,
@@ -865,15 +972,21 @@ namespace WordGenerator.Api.Controllers
                                 Text = p.Text,
                                 Order = p.Order
                             }).ToList(),
-                            Images = s.Images?.Select(img => new ImageItem
+                            ImageGroups = s.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
                             {
-                                FileName = img.FileName,
-                                Caption = img.Caption,
-                                Order = img.Order,
-                                Width = img.Width,
-                                Height = img.Height,
-                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                            }).ToList() ?? new List<ImageItem>(),
+                                Title = g.Title,
+                                Order = g.Order,
+                                ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                                Images = g.Images.Select(img => new ImageItem
+                                {
+                                    FileName = img.FileName,
+                                    Caption = img.Caption,
+                                    Order = img.Order,
+                                    Width = img.Width,
+                                    Height = img.Height,
+                                    ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                                }).ToList()
+                            }).ToList() ?? new List<ImageGroup>(),
                             Tables = s.Tables.Select(t => new DynamicTable
                             {
                                 Title = t.Title,
@@ -911,15 +1024,21 @@ namespace WordGenerator.Api.Controllers
                             Text = p.Text,
                             Order = p.Order
                         }).ToList(),
-                        Images = x.Images?.Select(img => new ImageItem
+                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
                         {
-                            FileName = img.FileName,
-                            Caption = img.Caption,
-                            Order = img.Order,
-                            Width = img.Width,
-                            Height = img.Height,
-                            ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                        }).ToList() ?? new List<ImageItem>(),
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         Tables = x.Tables.Select(t => new DynamicTable
                         {
                             Title = t.Title,
