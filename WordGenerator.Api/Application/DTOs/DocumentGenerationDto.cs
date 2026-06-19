@@ -5,7 +5,41 @@ namespace WordGenerator.Api.Application.DTOs
     {
         public CoverPageDataDto? CoverPage { get; set; }
         public bool IncludeTableOfContents { get; set; } = true;
+
+        // بخش‌های قدیمی
         public List<SectionDataDto> Sections { get; set; } = new();
+
+        // بخش‌های جدید سلسله‌مراتبی
+        public List<MasterSectionDataDto> MasterSections { get; set; } = new();
+    }
+
+    /// <summary>
+    /// DTO برای بخش اصلی در درخواست تولید سند
+    /// </summary>
+    public class MasterSectionDataDto
+    {
+        public long? Id { get; set; }
+        public string Title { get; set; } = null!;
+        public int Order { get; set; }
+        public bool ShowInToc { get; set; } = true;
+
+        public List<SubSectionDataDto> SubSections { get; set; } = new();
+        public List<ParagraphDataDto> Paragraphs { get; set; } = new();
+        public List<TableDataDto> Tables { get; set; } = new();
+    }
+
+    /// <summary>
+    /// DTO برای زیربخش در درخواست تولید سند
+    /// </summary>
+    public class SubSectionDataDto
+    {
+        public long? Id { get; set; }
+        public string Title { get; set; } = null!;
+        public int Order { get; set; }
+        public bool ShowInToc { get; set; } = true;
+
+        public List<ParagraphDataDto> Paragraphs { get; set; } = new();
+        public List<TableDataDto> Tables { get; set; } = new();
     }
 
     public class CoverPageDataDto

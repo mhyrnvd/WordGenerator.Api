@@ -14,11 +14,13 @@ namespace WordGenerator.Api.Infra.Implementation.Configs
 
             builder.HasOne(x => x.Template)
                 .WithMany(x => x.Sections)
-                .HasForeignKey(x => x.TemplateId);
+                .HasForeignKey(x => x.TemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasMany(x => x.Paragraphs)
                 .WithOne(x => x.Section)
-                .HasForeignKey(x => x.TemplateSectionId);
+                .HasForeignKey(x => x.TemplateSectionId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

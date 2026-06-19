@@ -6,7 +6,10 @@
 
         public CreateCoverPageDto? CoverPage { get; set; }
 
-        public List<CreateTemplateSectionDto> Sections { get; set; }
-            = new();
+        // بخش‌های قدیمی (برای سازگاری با عقب - می‌توان بعداً حذف کرد)
+        public List<CreateTemplateSectionDto> Sections { get; set; } = new();
+
+        // بخش‌های جدید سلسله‌مراتبی
+        public List<CreateMasterSectionDto> MasterSections { get; set; } = new();
     }
 }

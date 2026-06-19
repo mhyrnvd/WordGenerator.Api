@@ -12,6 +12,12 @@
         public bool ShowRowNumbers { get; set; } = false;
         public string? RowNumberHeader { get; set; }
 
+        public long? MasterSectionId { get; set; }
+        public virtual MasterSection? MasterSection { get; set; }
+
+        public long? SubSectionId { get; set; }
+        public virtual SubSection? SubSection { get; set; }
+
         public virtual ICollection<TableColumnDefinition> Columns { get; set; } = new List<TableColumnDefinition>();
         public virtual ICollection<TableDataRow> Rows { get; set; } = new List<TableDataRow>();
     }

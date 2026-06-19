@@ -29,9 +29,9 @@ namespace WordGenerator.Api.Controllers
         }
 
         [HttpPost("user-generate")]
-        public async Task<IActionResult> Generate(DocumentGenerationDto request)
+        public async Task<IActionResult> UserGenerate(DocumentGenerationDto request)
         {
-            var file = _wordService.Generate(request);
+            var file = await _wordService.GenerateFromDtoAsync(request);
 
             return File(
                 file,

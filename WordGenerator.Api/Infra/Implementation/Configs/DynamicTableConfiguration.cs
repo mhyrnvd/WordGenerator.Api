@@ -19,12 +19,12 @@ namespace WordGenerator.Api.Infra.Configurations
             builder.HasOne(x => x.CoverPage)
                 .WithMany(x => x.Tables)
                 .HasForeignKey(x => x.CoverPageTemplateId)
-                .OnDelete(DeleteBehavior.SetNull); // تغییر به SetNull
+                .OnDelete(DeleteBehavior.Cascade); // تغییر به SetNull
 
             builder.HasOne(x => x.Section)
                 .WithMany(x => x.Tables)
                 .HasForeignKey(x => x.TemplateSectionId)
-                .OnDelete(DeleteBehavior.SetNull); // تغییر به SetNull
+                .OnDelete(DeleteBehavior.Cascade); // تغییر به SetNull
         }
     }
 }
