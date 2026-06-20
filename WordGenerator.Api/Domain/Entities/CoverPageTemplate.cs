@@ -3,18 +3,12 @@
     public class CoverPageTemplate
     {
         public long Id { get; set; }
-
-        public string? Title { get; set; } = null!;
-
+        public string? Title { get; set; }
         public long DocumentTemplateId { get; set; }
-        public DocumentTemplate DocumentTemplate { get; set; } = null!;
+        public virtual DocumentTemplate DocumentTemplate { get; set; } = null!;
+        public virtual ICollection<CoverPageItem> Items { get; set; } = new List<CoverPageItem>();
 
-        public ICollection<CoverPageItem> Items { get; set; }
-            = new List<CoverPageItem>();
-
-        // اضافه کردن جداول به کاورپیج
-        public ICollection<DynamicTable> Tables { get; set; } = new List<DynamicTable>();
-        public ICollection<ImageItem> Images { get; set; } = new List<ImageItem>();
-        public ICollection<ImageGroup> ImageGroups { get; set; } = new List<ImageGroup>();
+        // به جای Images, Tables
+        public virtual ICollection<ContentElement> Elements { get; set; } = new List<ContentElement>();
     }
 }

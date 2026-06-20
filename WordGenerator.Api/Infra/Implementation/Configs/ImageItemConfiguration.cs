@@ -1,42 +1,67 @@
-﻿using DocumentFormat.OpenXml.Vml.Office;
+﻿// WordGenerator.Api.Infra.Configurations/ImageItemConfiguration.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using WordGenerator.Api.Domain.Entities;
 
-namespace WordGenerator.Api.Infra.Implementation.Configs
+namespace WordGenerator.Api.Infra.Configurations
 {
     public class ImageItemConfiguration : IEntityTypeConfiguration<ImageItem>
     {
         public void Configure(EntityTypeBuilder<ImageItem> builder)
         {
             builder.ToTable("Images");
-            builder.HasKey(e => e.Id);
-            builder.Property(e => e.FileName).IsRequired().HasMaxLength(255);
-            builder.Property(e => e.ImageData).IsRequired();
-            builder.Property(e => e.Caption).HasMaxLength(500);
-            builder.Property(e => e.Width).HasDefaultValue(500);
-            builder.Property(e => e.Height).HasDefaultValue(0);
 
-            // روابط
-            builder.HasOne(e => e.Section)
-                .WithMany(s => s.Images)
-                .HasForeignKey(e => e.TemplateSectionId)
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.FileName)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            builder.Property(x => x.ImageData)
+                .IsRequired();
+
+            builder.Property(x => x.Caption)
+                .HasMaxLength(1000)
+                .IsRequired(false);
+
+            builder.Property(x => x.Order)
+                .IsRequired()
+                .HasDefaultValue(1);
+
+            builder.Property(x => x.Width)
+                .IsRequired()
+                .HasDefaultValue(500);
+
+            builder.Property(x => x.Height)
+                .IsRequired()
+                .HasDefaultValue(0);
+
+            // رابطه با MasterSection (برای سازگاری با روش قدیمی)
+            builder.HasOne(x => x.MasterSection)
+                .WithMany()
+                .HasForeignKey(x => x.MasterSectionId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne(e => e.MasterSection)
-                .WithMany(s => s.Images)
-                .HasForeignKey(e => e.MasterSectionId)
+            // رابطه با SubSection (برای سازگاری با روش قدیمی)
+            builder.HasOne(x => x.SubSection)
+                .WithMany()
+                .HasForeignKey(x => x.SubSectionId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne(e => e.SubSection)
-                .WithMany(s => s.Images)
-                .HasForeignKey(e => e.SubSectionId)
+            // رابطه با TemplateSection (برای سازگاری با روش قدیمی)
+            builder.HasOne(x => x.Section)
+                .WithMany()
+                .HasForeignKey(x => x.TemplateSectionId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne(e => e.CoverPage)
-                .WithMany(s => s.Images)
-                .HasForeignKey(e => e.CoverPageId)
+            // رابطه با CoverPage (برای سازگاری با روش قدیمی)
+            builder.HasOne(x => x.CoverPage)
+                .WithMany()
+                .HasForeignKey(x => x.CoverPageId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ایندکس‌ها
+            builder.HasIndex(x => x.Order);
         }
     }
 }

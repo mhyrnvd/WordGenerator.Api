@@ -30,27 +30,6 @@ namespace WordGenerator.Api.Infra.Implementation.Configs
                 .HasForeignKey(x => x.ImageGroupId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // روابط با بخش‌ها
-            builder.HasOne(x => x.MasterSection)
-                .WithMany(x => x.ImageGroups)
-                .HasForeignKey(x => x.MasterSectionId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(x => x.SubSection)
-                .WithMany(x => x.ImageGroups)
-                .HasForeignKey(x => x.SubSectionId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(x => x.TemplateSection)
-                .WithMany(x => x.ImageGroups)
-                .HasForeignKey(x => x.TemplateSectionId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(x => x.CoverPage)
-                .WithMany(x => x.ImageGroups)
-                .HasForeignKey(x => x.CoverPageId)
-                .OnDelete(DeleteBehavior.Restrict);
-
             // ایندکس‌ها برای بهبود عملکرد
             builder.HasIndex(x => x.Order);
             builder.HasIndex(x => x.MasterSectionId);

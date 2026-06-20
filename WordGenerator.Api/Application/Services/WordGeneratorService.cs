@@ -1,20 +1,21 @@
 ﻿using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Drawing;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using DocumentFormat.OpenXml.Drawing;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 using WordGenerator.Api.Application.DTOs;
 using WordGenerator.Api.Application.Requests;
 using WordGenerator.Api.Domain.Entities;
+using WordGenerator.Api.Domain.Enums;
 using WordGenerator.Api.Infra.Context;
-
-// ===== Using aliases =====
-using W = DocumentFormat.OpenXml.Wordprocessing;
 using D = DocumentFormat.OpenXml.Drawing;
 using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
+// ===== Using aliases =====
+using W = DocumentFormat.OpenXml.Wordprocessing;
 // =========================
+
 namespace WordGenerator.Api.Application.Services
 {
     public class WordGeneratorService
@@ -54,23 +55,10 @@ namespace WordGenerator.Api.Application.Services
                 {
                     body.Append(CreateCoverPageFromDto(document.CoverPage));
 
-                    // تصاویر کاورپیج
-                    foreach (var image in document.CoverPage.Images.OrderBy(x => x.Order))
+                    // رندر کردن عناصر کاورپیج
+                    foreach (var element in document.CoverPage.Elements.OrderBy(x => x.Order))
                     {
-                        var imageParagraph = new W.Paragraph(
-                            new W.ParagraphProperties(
-                                new W.Justification { Val = W.JustificationValues.Center },
-                                new W.SpacingBetweenLines { After = "200" }
-                            )
-                        );
-                        InsertImageToParagraph(imageParagraph, image, mainPart);
-                        body.Append(imageParagraph);
-                    }
-
-                    foreach (var table in document.CoverPage.Tables.OrderBy(x => x.Order))
-                    {
-                        body.Append(CreateTableFromDto(table));
-                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                        RenderElement(body, element, mainPart);
                     }
 
                     body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
@@ -90,31 +78,12 @@ namespace WordGenerator.Api.Application.Services
                 foreach (var masterSection in document.MasterSections.OrderBy(x => x.Order))
                 {
                     masterCounter++;
-
                     body.Append(CreateMasterHeading(masterSection.Title, masterCounter.ToString()));
 
-                    foreach (var paragraph in masterSection.Paragraphs.OrderBy(x => x.Order))
+                    // رندر کردن عناصر Master Section
+                    foreach (var element in masterSection.Elements.OrderBy(x => x.Order))
                     {
-                        body.Append(CreateParagraph(paragraph.Text));
-                    }
-
-                    // تصاویر بخش اصلی
-                    foreach (var image in masterSection.Images.OrderBy(x => x.Order))
-                    {
-                        var imageParagraph = new W.Paragraph(
-                            new W.ParagraphProperties(
-                                new W.Justification { Val = W.JustificationValues.Center },
-                                new W.SpacingBetweenLines { After = "200" }
-                            )
-                        );
-                        InsertImageToParagraph(imageParagraph, image, mainPart);
-                        body.Append(imageParagraph);
-                    }
-
-                    foreach (var table in masterSection.Tables.OrderBy(x => x.Order))
-                    {
-                        body.Append(CreateTableFromDto(table));
-                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                        RenderElement(body, element, mainPart);
                     }
 
                     int subCounter = 0;
@@ -123,28 +92,10 @@ namespace WordGenerator.Api.Application.Services
                         subCounter++;
                         body.Append(CreateSubHeading(subSection.Title, $"{subCounter}-{masterCounter}"));
 
-                        foreach (var paragraph in subSection.Paragraphs.OrderBy(x => x.Order))
+                        // رندر کردن عناصر Sub Section
+                        foreach (var element in subSection.Elements.OrderBy(x => x.Order))
                         {
-                            body.Append(CreateParagraph(paragraph.Text));
-                        }
-
-                        // تصاویر زیربخش
-                        foreach (var image in subSection.Images.OrderBy(x => x.Order))
-                        {
-                            var imageParagraph = new W.Paragraph(
-                                new W.ParagraphProperties(
-                                    new W.Justification { Val = W.JustificationValues.Center },
-                                    new W.SpacingBetweenLines { After = "200" }
-                                )
-                            );
-                            InsertImageToParagraph(imageParagraph, image, mainPart);
-                            body.Append(imageParagraph);
-                        }
-
-                        foreach (var table in subSection.Tables.OrderBy(x => x.Order))
-                        {
-                            body.Append(CreateTableFromDto(table));
-                            body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                            RenderElement(body, element, mainPart);
                         }
                     }
                 }
@@ -154,28 +105,10 @@ namespace WordGenerator.Api.Application.Services
                 {
                     body.Append(CreateHeading(section.Title, "32"));
 
-                    foreach (var paragraph in section.Paragraphs.OrderBy(x => x.Order))
+                    // رندر کردن عناصر Legacy Section
+                    foreach (var element in section.Elements.OrderBy(x => x.Order))
                     {
-                        body.Append(CreateParagraph(paragraph.Text));
-                    }
-
-                    // تصاویر بخش قدیمی
-                    foreach (var image in section.Images.OrderBy(x => x.Order))
-                    {
-                        var imageParagraph = new W.Paragraph(
-                            new W.ParagraphProperties(
-                                new W.Justification { Val = W.JustificationValues.Center },
-                                new W.SpacingBetweenLines { After = "200" }
-                            )
-                        );
-                        InsertImageToParagraph(imageParagraph, image, mainPart);
-                        body.Append(imageParagraph);
-                    }
-
-                    foreach (var table in section.Tables.OrderBy(x => x.Order))
-                    {
-                        body.Append(CreateTableFromDto(table));
-                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                        RenderElement(body, element, mainPart);
                     }
                 }
 
@@ -192,51 +125,60 @@ namespace WordGenerator.Api.Application.Services
                 .Include(x => x.CoverPage)
                     .ThenInclude(x => x.Items)
                 .Include(x => x.CoverPage)
-                    .ThenInclude(x => x.Images)
+                    .ThenInclude(x => x.Elements)
+                        .ThenInclude(e => e.Image)
                 .Include(x => x.CoverPage)
-                    .ThenInclude(x => x.Tables)
-                        .ThenInclude(t => t.Columns)
-                .Include(x => x.CoverPage)
-                    .ThenInclude(x => x.Tables)
-                        .ThenInclude(t => t.Rows)
-                            .ThenInclude(r => r.Cells)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.Paragraphs)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.Images)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.SubSections)
-                        .ThenInclude(s => s.Paragraphs)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.SubSections)
-                        .ThenInclude(s => s.Images)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.SubSections)
-                        .ThenInclude(s => s.Tables)
+                    .ThenInclude(x => x.Elements)
+                        .ThenInclude(e => e.Table)
                             .ThenInclude(t => t.Columns)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.SubSections)
-                        .ThenInclude(s => s.Tables)
+                .Include(x => x.CoverPage)
+                    .ThenInclude(x => x.Elements)
+                        .ThenInclude(e => e.Table)
                             .ThenInclude(t => t.Rows)
                                 .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
                 .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.Tables)
-                        .ThenInclude(t => t.Columns)
+                    .ThenInclude(m => m.Elements)
+                        .ThenInclude(e => e.Image)
                 .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.Tables)
-                        .ThenInclude(t => t.Rows)
-                            .ThenInclude(r => r.Cells)
+                    .ThenInclude(m => m.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.SubSections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Image)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.SubSections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Columns)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.SubSections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Rows)
+                                    .ThenInclude(r => r.Cells)
+                                        .ThenInclude(c => c.Column)
                 .Include(x => x.Sections)
-                    .ThenInclude(s => s.Paragraphs)
+                    .ThenInclude(s => s.Elements)
+                        .ThenInclude(e => e.Image)
                 .Include(x => x.Sections)
-                    .ThenInclude(s => s.Images)
+                    .ThenInclude(s => s.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
                 .Include(x => x.Sections)
-                    .ThenInclude(s => s.Tables)
-                        .ThenInclude(t => t.Columns)
-                .Include(x => x.Sections)
-                    .ThenInclude(s => s.Tables)
-                        .ThenInclude(t => t.Rows)
-                            .ThenInclude(r => r.Cells)
+                    .ThenInclude(s => s.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
                 .FirstAsync(x => x.Id == request.TemplateId);
 
             var selectedMasterSections = template.MasterSections
@@ -263,23 +205,9 @@ namespace WordGenerator.Api.Application.Services
                 {
                     body.Append(CreateCoverPageFromEntity(template.CoverPage));
 
-                    // تصاویر کاورپیج
-                    foreach (var image in template.CoverPage.Images.OrderBy(x => x.Order))
+                    foreach (var element in template.CoverPage.Elements.OrderBy(x => x.Order))
                     {
-                        var imageParagraph = new W.Paragraph(
-                            new W.ParagraphProperties(
-                                new W.Justification { Val = W.JustificationValues.Center },
-                                new W.SpacingBetweenLines { After = "200" }
-                            )
-                        );
-                        InsertImageToParagraph(imageParagraph, MapImageToDto(image), mainPart);
-                        body.Append(imageParagraph);
-                    }
-
-                    foreach (var table in template.CoverPage.Tables.OrderBy(x => x.Order))
-                    {
-                        body.Append(CreateTableFromEntity(table));
-                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                        RenderElementFromEntity(body, element, mainPart);
                     }
 
                     body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
@@ -298,28 +226,9 @@ namespace WordGenerator.Api.Application.Services
                     masterCounter++;
                     body.Append(CreateMasterHeading(masterSection.Title, masterCounter.ToString()));
 
-                    foreach (var paragraph in masterSection.Paragraphs.OrderBy(x => x.Order))
+                    foreach (var element in masterSection.Elements.OrderBy(x => x.Order))
                     {
-                        body.Append(CreateParagraph(paragraph.Text));
-                    }
-
-                    // تصاویر بخش اصلی
-                    foreach (var image in masterSection.Images.OrderBy(x => x.Order))
-                    {
-                        var imageParagraph = new W.Paragraph(
-                            new W.ParagraphProperties(
-                                new W.Justification { Val = W.JustificationValues.Center },
-                                new W.SpacingBetweenLines { After = "200" }
-                            )
-                        );
-                        InsertImageToParagraph(imageParagraph, MapImageToDto(image), mainPart);
-                        body.Append(imageParagraph);
-                    }
-
-                    foreach (var table in masterSection.Tables.OrderBy(x => x.Order))
-                    {
-                        body.Append(CreateTableFromEntity(table));
-                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                        RenderElementFromEntity(body, element, mainPart);
                     }
 
                     int subCounter = 0;
@@ -328,28 +237,9 @@ namespace WordGenerator.Api.Application.Services
                         subCounter++;
                         body.Append(CreateSubHeading(subSection.Title, $"{subCounter}-{masterCounter}"));
 
-                        foreach (var paragraph in subSection.Paragraphs.OrderBy(x => x.Order))
+                        foreach (var element in subSection.Elements.OrderBy(x => x.Order))
                         {
-                            body.Append(CreateParagraph(paragraph.Text));
-                        }
-
-                        // تصاویر زیربخش
-                        foreach (var image in subSection.Images.OrderBy(x => x.Order))
-                        {
-                            var imageParagraph = new W.Paragraph(
-                                new W.ParagraphProperties(
-                                    new W.Justification { Val = W.JustificationValues.Center },
-                                    new W.SpacingBetweenLines { After = "200" }
-                                )
-                            );
-                            InsertImageToParagraph(imageParagraph, MapImageToDto(image), mainPart);
-                            body.Append(imageParagraph);
-                        }
-
-                        foreach (var table in subSection.Tables.OrderBy(x => x.Order))
-                        {
-                            body.Append(CreateTableFromEntity(table));
-                            body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                            RenderElementFromEntity(body, element, mainPart);
                         }
                     }
                 }
@@ -359,28 +249,9 @@ namespace WordGenerator.Api.Application.Services
                 {
                     body.Append(CreateHeading(section.Title, "32"));
 
-                    foreach (var paragraph in section.Paragraphs.OrderBy(x => x.Order))
+                    foreach (var element in section.Elements.OrderBy(x => x.Order))
                     {
-                        body.Append(CreateParagraph(paragraph.Text));
-                    }
-
-                    // تصاویر بخش قدیمی
-                    foreach (var image in section.Images.OrderBy(x => x.Order))
-                    {
-                        var imageParagraph = new W.Paragraph(
-                            new W.ParagraphProperties(
-                                new W.Justification { Val = W.JustificationValues.Center },
-                                new W.SpacingBetweenLines { After = "200" }
-                            )
-                        );
-                        InsertImageToParagraph(imageParagraph, MapImageToDto(image), mainPart);
-                        body.Append(imageParagraph);
-                    }
-
-                    foreach (var table in section.Tables.OrderBy(x => x.Order))
-                    {
-                        body.Append(CreateTableFromEntity(table));
-                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                        RenderElementFromEntity(body, element, mainPart);
                     }
                 }
 
@@ -407,19 +278,9 @@ namespace WordGenerator.Api.Application.Services
                 {
                     body.Append(CreateCoverPageFromDto(request.CoverPage));
 
-                    // تصاویر کاورپیج
-                    if (request.CoverPage.ImageGroups.Any())
+                    foreach (var element in request.CoverPage.Elements.OrderBy(x => x.Order))
                     {
-                        foreach (var group in request.CoverPage.ImageGroups.OrderBy(x => x.Order))
-                        {
-                            InsertImageGroup(body, group, mainPart);
-                        }
-                    }
-
-                    foreach (var table in request.CoverPage.Tables.OrderBy(x => x.Order))
-                    {
-                        body.Append(CreateTableFromDto(table));
-                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                        RenderElement(body, element, mainPart);
                     }
 
                     body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
@@ -441,26 +302,9 @@ namespace WordGenerator.Api.Application.Services
                     masterCounter++;
                     body.Append(CreateMasterHeading(masterSection.Title, masterCounter.ToString()));
 
-                    // پاراگراف‌های بخش اصلی
-                    foreach (var paragraph in masterSection.Paragraphs.OrderBy(x => x.Order))
+                    foreach (var element in masterSection.Elements.OrderBy(x => x.Order))
                     {
-                        body.Append(CreateParagraph(paragraph.Text));
-                    }
-
-                    // تصاویر بخش اصلی
-                    if (masterSection.ImageGroups.Any())
-                    {
-                        foreach (var group in masterSection.ImageGroups.OrderBy(x => x.Order))
-                        {
-                            InsertImageGroup(body, group, mainPart);
-                        }
-                    }
-
-                    // جداول بخش اصلی
-                    foreach (var table in masterSection.Tables.OrderBy(x => x.Order))
-                    {
-                        body.Append(CreateTableFromDto(table));
-                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                        RenderElement(body, element, mainPart);
                     }
 
                     // ========== Sub Sections ==========
@@ -470,26 +314,9 @@ namespace WordGenerator.Api.Application.Services
                         subCounter++;
                         body.Append(CreateSubHeading(subSection.Title, $"{subCounter}-{masterCounter}"));
 
-                        // پاراگراف‌های زیربخش
-                        foreach (var paragraph in subSection.Paragraphs.OrderBy(x => x.Order))
+                        foreach (var element in subSection.Elements.OrderBy(x => x.Order))
                         {
-                            body.Append(CreateParagraph(paragraph.Text));
-                        }
-
-                        // تصاویر زیربخش
-                        if (subSection.ImageGroups.Any())
-                        {
-                            foreach (var group in subSection.ImageGroups.OrderBy(x => x.Order))
-                            {
-                                InsertImageGroup(body, group, mainPart);
-                            }
-                        }
-
-                        // جداول زیربخش
-                        foreach (var table in subSection.Tables.OrderBy(x => x.Order))
-                        {
-                            body.Append(CreateTableFromDto(table));
-                            body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                            RenderElement(body, element, mainPart);
                         }
                     }
                 }
@@ -499,26 +326,9 @@ namespace WordGenerator.Api.Application.Services
                 {
                     body.Append(CreateHeading(section.Title, "32"));
 
-                    // پاراگراف‌های بخش قدیمی
-                    foreach (var paragraph in section.Paragraphs.OrderBy(x => x.Order))
+                    foreach (var element in section.Elements.OrderBy(x => x.Order))
                     {
-                        body.Append(CreateParagraph(paragraph.Text));
-                    }
-
-                    // تصاویر بخش قدیمی
-                    if (section.ImageGroups.Any())
-                    {
-                        foreach (var group in section.ImageGroups.OrderBy(x => x.Order))
-                        {
-                            InsertImageGroup(body, group, mainPart);
-                        }
-                    }
-
-                    // جداول بخش قدیمی
-                    foreach (var table in section.Tables.OrderBy(x => x.Order))
-                    {
-                        body.Append(CreateTableFromDto(table));
-                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                        RenderElement(body, element, mainPart);
                     }
                 }
 
@@ -528,136 +338,82 @@ namespace WordGenerator.Api.Application.Services
 
             return ms.ToArray();
         }
+
+        #endregion
+
+        #region Element Rendering Methods
+
+        private void RenderElement(W.Body body, ContentElementDto element, MainDocumentPart mainPart)
+        {
+            switch (element.Type?.ToLower())
+            {
+                case "paragraph":
+                    if (!string.IsNullOrEmpty(element.Text))
+                        body.Append(CreateParagraph(element.Text));
+                    break;
+
+                case "image":
+                    if (element.Image != null)
+                    {
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Center },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, element.Image, mainPart);
+                        body.Append(imageParagraph);
+                    }
+                    break;
+
+                case "table":
+                    if (element.Table != null)
+                    {
+                        body.Append(CreateTableFromDto(element.Table));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                    }
+                    break;
+            }
+        }
+
+        private void RenderElementFromEntity(W.Body body, ContentElement element, MainDocumentPart mainPart)
+        {
+            switch (element.Type)
+            {
+                case ContentElementType.Paragraph:
+                    if (!string.IsNullOrEmpty(element.ParagraphText))
+                        body.Append(CreateParagraph(element.ParagraphText));
+                    break;
+
+                case ContentElementType.Image:
+                    if (element.Image != null)
+                    {
+                        var imageDto = MapImageToDto(element.Image);
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Center },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, imageDto, mainPart);
+                        body.Append(imageParagraph);
+                    }
+                    break;
+
+                case ContentElementType.Table:
+                    if (element.Table != null)
+                    {
+                        var tableDto = MapTableToDto(element.Table);
+                        body.Append(CreateTableFromDto(tableDto));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                    }
+                    break;
+            }
+        }
+
         #endregion
 
         #region Image Methods
-
-        private void InsertImageGroup(W.Body body, ImageGroupDto groupDto, MainDocumentPart mainPart)
-        {
-            if (groupDto.Images == null || !groupDto.Images.Any())
-                return;
-
-            var imageList = groupDto.Images.OrderBy(x => x.Order).ToList();
-            int totalImages = imageList.Count;
-
-            // عنوان گروه
-            if (!string.IsNullOrEmpty(groupDto.Title))
-            {
-                var titleParagraph = new W.Paragraph(
-                    new W.ParagraphProperties(
-                        new W.Justification { Val = W.JustificationValues.Center },
-                        new W.SpacingBetweenLines { After = "200" }
-                    )
-                );
-                body.Append(titleParagraph);
-            }
-
-            // اگر فقط یک عکس داریم
-            if (totalImages == 1)
-            {
-                var imageDto = imageList[0];
-                var imageParagraph = new W.Paragraph(
-                    new W.ParagraphProperties(
-                        new W.Justification { Val = W.JustificationValues.Center },
-                        new W.SpacingBetweenLines { After = "200" }
-                    )
-                );
-                InsertImageToParagraph(imageParagraph, imageDto, mainPart);
-                body.Append(imageParagraph);
-                return;
-            }
-
-            // ========== استفاده از جدول برای چیدمان ==========
-            var table = new W.Table();
-
-            var tableProps = new W.TableProperties(
-                new W.TableBorders(
-                    new W.TopBorder { Val = W.BorderValues.Nil },
-                    new W.BottomBorder { Val = W.BorderValues.Nil },
-                    new W.LeftBorder { Val = W.BorderValues.Nil },
-                    new W.RightBorder { Val = W.BorderValues.Nil },
-                    new W.InsideHorizontalBorder { Val = W.BorderValues.Nil },
-                    new W.InsideVerticalBorder { Val = W.BorderValues.Nil }
-                ),
-                new W.TableWidth { Width = "100%", Type = W.TableWidthUnitValues.Pct },
-                new W.TableLayout { Type = W.TableLayoutValues.Autofit },
-                new W.Justification { Val = W.JustificationValues.Center }
-            );
-            table.Append(tableProps);
-
-            int imagesPerRow = groupDto.ImagesPerRow > 0 ? groupDto.ImagesPerRow : 2;
-            int rowCount = (int)Math.Ceiling((double)totalImages / imagesPerRow);
-            double cellWidth = 100.0 / imagesPerRow;
-
-            int imageIndex = 0;
-            for (int row = 0; row < rowCount; row++)
-            {
-                var tableRow = new W.TableRow();
-                tableRow.Append(new W.TableRowProperties(
-                    new W.TableRowHeight { Val = 300, HeightType = W.HeightRuleValues.AtLeast }
-                ));
-
-                int imagesInThisRow = Math.Min(imagesPerRow, totalImages - imageIndex);
-                bool isLastRowSingle = (row == rowCount - 1 && imagesInThisRow == 1);
-
-                for (int col = 0; col < imagesPerRow && imageIndex < totalImages; col++)
-                {
-                    var imageDto = imageList[imageIndex];
-
-                    var cell = new W.TableCell();
-
-                    string cellWidthValue = isLastRowSingle ? "100" : cellWidth.ToString("0.00");
-
-                    var cellProps = new W.TableCellProperties(
-                        new W.TableCellWidth
-                        {
-                            Type = W.TableWidthUnitValues.Pct,
-                            Width = cellWidthValue
-                        },
-                        new W.TableCellVerticalAlignment { Val = W.TableVerticalAlignmentValues.Center },
-                        new W.Justification { Val = W.JustificationValues.Center }
-                    );
-                    cell.Append(cellProps);
-
-                    var imageParagraph = new W.Paragraph(
-                        new W.ParagraphProperties(
-                            new W.Justification { Val = W.JustificationValues.Center },
-                            new W.SpacingBetweenLines { After = "100" }
-                        )
-                    );
-
-                    InsertImageToParagraph(imageParagraph, imageDto, mainPart);
-
-                    cell.Append(imageParagraph);
-                    tableRow.Append(cell);
-
-                    imageIndex++;
-                }
-
-                // سلول‌های خالی برای تکمیل ردیف (فقط اگر تک عکس نباشه)
-                int emptyCells = imagesPerRow - (imageIndex % imagesPerRow);
-                if (emptyCells > 0 && emptyCells < imagesPerRow && !isLastRowSingle)
-                {
-                    for (int i = 0; i < emptyCells; i++)
-                    {
-                        var emptyCell = new W.TableCell();
-                        var emptyCellProps = new W.TableCellProperties(
-                            new W.TableCellWidth
-                            {
-                                Type = W.TableWidthUnitValues.Pct,
-                                Width = cellWidth.ToString("0.00")
-                            }
-                        );
-                        emptyCell.Append(emptyCellProps);
-                        tableRow.Append(emptyCell);
-                    }
-                }
-
-                table.Append(tableRow);
-            }
-
-            body.Append(table);
-        }
 
         private void InsertImageToParagraph(W.Paragraph paragraph, ImageItemDto imageDto, MainDocumentPart mainPart)
         {
@@ -666,10 +422,8 @@ namespace WordGenerator.Api.Application.Services
 
             try
             {
-                // تبدیل Base64 به بایت
                 var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
 
-                // تشخیص نوع تصویر
                 var imagePartType = ImagePartType.Jpeg;
                 if (imageBytes.Length > 4)
                 {
@@ -679,7 +433,6 @@ namespace WordGenerator.Api.Application.Services
                         imagePartType = ImagePartType.Jpeg;
                 }
 
-                // اضافه کردن ImagePart
                 var imagePart = mainPart.AddImagePart(imagePartType);
                 using (var stream = new MemoryStream(imageBytes))
                 {
@@ -687,14 +440,11 @@ namespace WordGenerator.Api.Application.Services
                 }
                 var imagePartId = mainPart.GetIdOfPart(imagePart);
 
-                // ابعاد (با مقدار ثابت برای تست)
                 long cx = 3000000L;
                 long cy = 2000000L;
 
-                // ساختن تصویر دقیقاً مثل OpenXmlReportRenderer
                 var run = new W.Run();
 
-                // استفاده از W.Drawing و DW.Inline
                 var drawing = new W.Drawing(
                     new DW.Inline(
                         new DW.Extent() { Cx = cx, Cy = cy },
@@ -752,7 +502,6 @@ namespace WordGenerator.Api.Application.Services
             }
             catch (Exception ex)
             {
-                // در صورت خطا، یک متن نمایش بده
                 var run = new W.Run(
                     new W.RunProperties(
                         new W.FontSize { Val = "24" },
@@ -775,6 +524,38 @@ namespace WordGenerator.Api.Application.Services
                 Width = image.Width,
                 Height = image.Height,
                 ImageBase64 = Convert.ToBase64String(image.ImageData)
+            };
+        }
+
+        private TableDataDto MapTableToDto(DynamicTable table)
+        {
+            var columns = table.Columns.OrderBy(c => c.Order).ToList();
+
+            return new TableDataDto
+            {
+                Id = table.Id,
+                Title = table.Title,
+                Order = table.Order,
+                ShowRowNumbers = table.ShowRowNumbers,
+                RowNumberHeader = table.RowNumberHeader,
+                Columns = columns.Select(c => new ColumnDataDto
+                {
+                    Id = c.Id,
+                    Header = c.Header,
+                    Width = c.Width,
+                    Order = c.Order
+                }).ToList(),
+                Rows = table.Rows.OrderBy(r => r.RowNumber).Select(r => new RowDataDto
+                {
+                    Id = r.Id,
+                    RowNumber = r.RowNumber,
+                    Cells = r.Cells.OrderBy(c => c.Column.Order).Select(c => new CellDataDto
+                    {
+                        Id = c.Id,
+                        ColumnId = c.TableColumnDefinitionId,
+                        Value = c.Value
+                    }).ToList()
+                }).ToList()
             };
         }
 
@@ -864,7 +645,7 @@ namespace WordGenerator.Api.Application.Services
 
         #endregion
 
-        #region Table Creation - DTO Version
+        #region Table Creation
 
         private W.Table CreateTableFromDto(TableDataDto tableData)
         {
@@ -933,75 +714,6 @@ namespace WordGenerator.Api.Application.Services
 
                 table.Append(dataRow);
                 rowIndex++;
-            }
-
-            return table;
-        }
-
-        #endregion
-
-        #region Table Creation - Entity Version
-
-        private W.Table CreateTableFromEntity(DynamicTable dynamicTable)
-        {
-            var table = new W.Table();
-
-            var tableProps = new W.TableProperties(
-                new W.TableBorders(
-                    new W.TopBorder { Val = W.BorderValues.Single, Size = 4, Color = "000000" },
-                    new W.BottomBorder { Val = W.BorderValues.Single, Size = 4, Color = "000000" },
-                    new W.LeftBorder { Val = W.BorderValues.Single, Size = 4, Color = "000000" },
-                    new W.RightBorder { Val = W.BorderValues.Single, Size = 4, Color = "000000" },
-                    new W.InsideHorizontalBorder { Val = W.BorderValues.Single, Size = 2, Color = "000000" },
-                    new W.InsideVerticalBorder { Val = W.BorderValues.Single, Size = 2, Color = "000000" }
-                ),
-                new W.TableWidth { Width = "100%", Type = W.TableWidthUnitValues.Pct },
-                new W.TableLayout { Type = W.TableLayoutValues.Autofit },
-                new W.Justification { Val = W.JustificationValues.Center }
-            );
-            table.Append(tableProps);
-
-            var columns = dynamicTable.Columns.OrderBy(x => x.Order).ToList();
-            var totalWidth = 5000;
-            var fixedWidthColumns = columns.Where(c => c.Width > 0).ToList();
-            var autoWidthColumns = columns.Where(c => c.Width == 0).ToList();
-            var fixedWidth = fixedWidthColumns.Sum(c => c.Width * 50);
-            var remainingWidth = totalWidth - fixedWidth;
-            var autoWidth = autoWidthColumns.Count > 0 ? remainingWidth / autoWidthColumns.Count : 0;
-
-            var headerRow = new W.TableRow();
-            headerRow.Append(new W.TableRowProperties(new W.TableRowHeight { Val = 400, HeightType = W.HeightRuleValues.AtLeast }));
-
-            if (dynamicTable.ShowRowNumbers)
-            {
-                headerRow.Append(CreateHeaderCell(dynamicTable.RowNumberHeader ?? "ردیف", true, 10));
-            }
-
-            foreach (var column in columns)
-            {
-                var columnWidth = column.Width > 0 ? column.Width : (autoWidthColumns.Contains(column) ? autoWidth / 50 : 20);
-                headerRow.Append(CreateHeaderCell(column.Header, true, columnWidth));
-            }
-            table.Append(headerRow);
-
-            foreach (var row in dynamicTable.Rows.OrderBy(x => x.RowNumber))
-            {
-                var dataRow = new W.TableRow();
-                dataRow.Append(new W.TableRowProperties(new W.TableRowHeight { Val = 300, HeightType = W.HeightRuleValues.AtLeast }));
-
-                if (dynamicTable.ShowRowNumbers)
-                {
-                    dataRow.Append(CreateDataCell(row.RowNumber.ToString()));
-                }
-
-                foreach (var column in columns)
-                {
-                    var cell = row.Cells.FirstOrDefault(c => c.TableColumnDefinitionId == column.Id);
-                    var cellValue = cell?.Value ?? "";
-                    dataRow.Append(CreateDataCell(cellValue));
-                }
-
-                table.Append(dataRow);
             }
 
             return table;
