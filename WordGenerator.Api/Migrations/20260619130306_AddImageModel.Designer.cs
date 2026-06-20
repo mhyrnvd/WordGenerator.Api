@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WordGenerator.Api.Infra.Context;
 
@@ -10,9 +11,11 @@ using WordGenerator.Api.Infra.Context;
 namespace WordGenerator.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260619130306_AddImageModel")]
+    partial class AddImageModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -139,55 +142,6 @@ namespace WordGenerator.Api.Migrations
                     b.ToTable("DynamicTables", (string)null);
                 });
 
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ImageGroup", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long?>("CoverPageId")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("ImagesPerRow")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(2);
-
-                    b.Property<long?>("MasterSectionId")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("Order")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
-                    b.Property<long?>("SubSectionId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("TemplateSectionId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Title")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CoverPageId");
-
-                    b.HasIndex("MasterSectionId");
-
-                    b.HasIndex("Order");
-
-                    b.HasIndex("SubSectionId");
-
-                    b.HasIndex("TemplateSectionId");
-
-                    b.ToTable("ImageGroups", (string)null);
-                });
-
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ImageItem", b =>
                 {
                     b.Property<long>("Id")
@@ -217,9 +171,6 @@ namespace WordGenerator.Api.Migrations
                         .IsRequired()
                         .HasColumnType("varbinary(max)");
 
-                    b.Property<long?>("ImageGroupId")
-                        .HasColumnType("bigint");
-
                     b.Property<long?>("MasterSectionId")
                         .HasColumnType("bigint");
 
@@ -240,8 +191,6 @@ namespace WordGenerator.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CoverPageId");
-
-                    b.HasIndex("ImageGroupId");
 
                     b.HasIndex("MasterSectionId");
 
@@ -555,47 +504,11 @@ namespace WordGenerator.Api.Migrations
                     b.Navigation("SubSection");
                 });
 
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ImageGroup", b =>
-                {
-                    b.HasOne("WordGenerator.Api.Domain.Entities.CoverPageTemplate", "CoverPage")
-                        .WithMany("ImageGroups")
-                        .HasForeignKey("CoverPageId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("WordGenerator.Api.Domain.Entities.MasterSection", "MasterSection")
-                        .WithMany("ImageGroups")
-                        .HasForeignKey("MasterSectionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("WordGenerator.Api.Domain.Entities.SubSection", "SubSection")
-                        .WithMany("ImageGroups")
-                        .HasForeignKey("SubSectionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("WordGenerator.Api.Domain.Entities.TemplateSection", "TemplateSection")
-                        .WithMany("ImageGroups")
-                        .HasForeignKey("TemplateSectionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("CoverPage");
-
-                    b.Navigation("MasterSection");
-
-                    b.Navigation("SubSection");
-
-                    b.Navigation("TemplateSection");
-                });
-
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ImageItem", b =>
                 {
                     b.HasOne("WordGenerator.Api.Domain.Entities.CoverPageTemplate", "CoverPage")
                         .WithMany("Images")
                         .HasForeignKey("CoverPageId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("WordGenerator.Api.Domain.Entities.ImageGroup", "ImageGroup")
-                        .WithMany("Images")
-                        .HasForeignKey("ImageGroupId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("WordGenerator.Api.Domain.Entities.MasterSection", "MasterSection")
@@ -614,8 +527,6 @@ namespace WordGenerator.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CoverPage");
-
-                    b.Navigation("ImageGroup");
 
                     b.Navigation("MasterSection");
 
@@ -733,8 +644,6 @@ namespace WordGenerator.Api.Migrations
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.CoverPageTemplate", b =>
                 {
-                    b.Navigation("ImageGroups");
-
                     b.Navigation("Images");
 
                     b.Navigation("Items");
@@ -758,15 +667,8 @@ namespace WordGenerator.Api.Migrations
                     b.Navigation("Rows");
                 });
 
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ImageGroup", b =>
-                {
-                    b.Navigation("Images");
-                });
-
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.MasterSection", b =>
                 {
-                    b.Navigation("ImageGroups");
-
                     b.Navigation("Images");
 
                     b.Navigation("Paragraphs");
@@ -778,8 +680,6 @@ namespace WordGenerator.Api.Migrations
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.SubSection", b =>
                 {
-                    b.Navigation("ImageGroups");
-
                     b.Navigation("Images");
 
                     b.Navigation("Paragraphs");
@@ -799,8 +699,6 @@ namespace WordGenerator.Api.Migrations
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.TemplateSection", b =>
                 {
-                    b.Navigation("ImageGroups");
-
                     b.Navigation("Images");
 
                     b.Navigation("Paragraphs");

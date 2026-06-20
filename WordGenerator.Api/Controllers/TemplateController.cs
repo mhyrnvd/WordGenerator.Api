@@ -39,6 +39,21 @@ namespace WordGenerator.Api.Controllers
                             Value = x.Value,
                             Order = x.Order
                         }).ToList(),
+                        ImageGroups = dto.CoverPage.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
+                        {
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         Tables = dto.CoverPage.Tables.Select(x => new DynamicTable
                         {
                             Title = x.Title,
@@ -63,6 +78,21 @@ namespace WordGenerator.Api.Controllers
                             Text = p.Text,
                             Order = p.Order
                         }).ToList(),
+                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
+                        {
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         SubSections = x.SubSections.OrderBy(s => s.Order).Select(s => new SubSection
                         {
                             Title = s.Title,
@@ -73,6 +103,21 @@ namespace WordGenerator.Api.Controllers
                                 Text = p.Text,
                                 Order = p.Order
                             }).ToList(),
+                            ImageGroups = s.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
+                            {
+                                Title = g.Title,
+                                Order = g.Order,
+                                ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                                Images = g.Images.Select(img => new ImageItem
+                                {
+                                    FileName = img.FileName,
+                                    Caption = img.Caption,
+                                    Order = img.Order,
+                                    Width = img.Width,
+                                    Height = img.Height,
+                                    ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                                }).ToList()
+                            }).ToList() ?? new List<ImageGroup>(),
                             Tables = s.Tables.Select(t => new DynamicTable
                             {
                                 Title = t.Title,
@@ -110,6 +155,21 @@ namespace WordGenerator.Api.Controllers
                             Text = p.Text,
                             Order = p.Order
                         }).ToList(),
+                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
+                        {
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         Tables = x.Tables.Select(t => new DynamicTable
                         {
                             Title = t.Title,
@@ -144,7 +204,7 @@ namespace WordGenerator.Api.Controllers
 
         private async Task AddAllTableRowsAndCells(CreateDocumentTemplateDto dto, DocumentTemplate template)
         {
-            // جداول کاورپیج
+            // Cover Page Tables
             if (dto.CoverPage != null && template.CoverPage != null)
             {
                 var coverPageTables = template.CoverPage.Tables.ToList();
@@ -156,14 +216,13 @@ namespace WordGenerator.Api.Controllers
                 }
             }
 
-            // جداول بخش‌های جدید (MasterSections)
+            // MasterSections Tables
             var masterSectionsList = template.MasterSections.ToList();
             for (int m = 0; m < dto.MasterSections.Count && m < masterSectionsList.Count; m++)
             {
                 var masterDto = dto.MasterSections[m];
                 var master = masterSectionsList[m];
 
-                // جداول مستقیم MasterSection
                 var masterTables = master.Tables.ToList();
                 for (int t = 0; t < masterDto.Tables.Count && t < masterTables.Count; t++)
                 {
@@ -172,7 +231,6 @@ namespace WordGenerator.Api.Controllers
                     await AddRowsToTable(tableDto, table);
                 }
 
-                // جداول زیربخش‌ها
                 var subSectionsList = master.SubSections.ToList();
                 for (int s = 0; s < masterDto.SubSections.Count && s < subSectionsList.Count; s++)
                 {
@@ -189,7 +247,7 @@ namespace WordGenerator.Api.Controllers
                 }
             }
 
-            // جداول بخش‌های قدیمی
+            // Sections Tables
             var sectionsList = template.Sections.ToList();
             for (int s = 0; s < dto.Sections.Count && s < sectionsList.Count; s++)
             {
@@ -223,7 +281,6 @@ namespace WordGenerator.Api.Controllers
                     Cells = new List<TableDataCell>()
                 };
 
-                // ایجاد سلول‌ها قبل از افزودن ردیف به context
                 for (int i = 0; i < columns.Count && i < (rowDto.Values?.Count ?? 0); i++)
                 {
                     if (columns[i] != null)
@@ -237,10 +294,8 @@ namespace WordGenerator.Api.Controllers
                 }
 
                 _context.TableRows.Add(row);
-                // دیگر اینجا SaveChanges نمی‌کنیم، اجازه می‌دهیم همه با هم ذخیره شوند
             }
 
-            // ذخیره همه ردیف‌ها و سلول‌ها با هم
             await _context.SaveChangesAsync();
         }
 
@@ -265,7 +320,7 @@ namespace WordGenerator.Api.Controllers
         }
 
         // =========================
-        // GET TEMPLATE BY ID - FIXED VERSION WITH NULL CHECK
+        // GET TEMPLATE BY ID
         // =========================
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(long id)
@@ -275,18 +330,28 @@ namespace WordGenerator.Api.Controllers
                 .Include(x => x.CoverPage)
                     .ThenInclude(x => x.Items)
                 .Include(x => x.CoverPage)
+                    .ThenInclude(x => x.ImageGroups)
+                        .ThenInclude(g => g.Images)
+                .Include(x => x.CoverPage)
                     .ThenInclude(x => x.Tables)
                         .ThenInclude(t => t.Columns)
                 .Include(x => x.CoverPage)
                     .ThenInclude(x => x.Tables)
                         .ThenInclude(t => t.Rows)
                             .ThenInclude(r => r.Cells)
-                                 .ThenInclude(c => c.Column)
+                                .ThenInclude(c => c.Column)
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.Paragraphs)
                 .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.ImageGroups)
+                        .ThenInclude(g => g.Images)
+                .Include(x => x.MasterSections)
                     .ThenInclude(m => m.SubSections)
                         .ThenInclude(s => s.Paragraphs)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.SubSections)
+                        .ThenInclude(s => s.ImageGroups)
+                            .ThenInclude(g => g.Images)
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.SubSections)
                         .ThenInclude(s => s.Tables)
@@ -296,7 +361,7 @@ namespace WordGenerator.Api.Controllers
                         .ThenInclude(s => s.Tables)
                             .ThenInclude(t => t.Rows)
                                 .ThenInclude(r => r.Cells)
-                                    .ThenInclude(c => c.Column)  // اضافه کردن ThenInclude برای Column
+                                    .ThenInclude(c => c.Column)
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.Tables)
                         .ThenInclude(t => t.Columns)
@@ -304,23 +369,25 @@ namespace WordGenerator.Api.Controllers
                     .ThenInclude(m => m.Tables)
                         .ThenInclude(t => t.Rows)
                             .ThenInclude(r => r.Cells)
-                                .ThenInclude(c => c.Column)  // اضافه کردن ThenInclude برای Column
+                                .ThenInclude(c => c.Column)
                 .Include(x => x.Sections)
                     .ThenInclude(s => s.Paragraphs)
                 .Include(x => x.Sections)
+                    .ThenInclude(s => s.ImageGroups)
+                        .ThenInclude(g => g.Images)
+                .Include(x => x.Sections)
                     .ThenInclude(s => s.Tables)
                         .ThenInclude(t => t.Columns)
                 .Include(x => x.Sections)
                     .ThenInclude(s => s.Tables)
                         .ThenInclude(t => t.Rows)
                             .ThenInclude(r => r.Cells)
-                                .ThenInclude(c => c.Column)  // اضافه کردن ThenInclude برای Column
+                                .ThenInclude(c => c.Column)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (template == null)
                 return NotFound();
 
-            // برگرداندن داده با بررسی null
             return Ok(new
             {
                 template.Id,
@@ -336,6 +403,23 @@ namespace WordGenerator.Api.Controllers
                         x.Label,
                         x.Value,
                         x.Order
+                    }),
+                    ImageGroups = template.CoverPage.ImageGroups.OrderBy(g => g.Order).Select(g => new
+                    {
+                        g.Id,
+                        g.Title,
+                        g.Order,
+                        g.ImagesPerRow,
+                        Images = g.Images.OrderBy(i => i.Order).Select(i => new
+                        {
+                            i.Id,
+                            i.FileName,
+                            i.Caption,
+                            i.Order,
+                            i.Width,
+                            i.Height,
+                            ImageBase64 = Convert.ToBase64String(i.ImageData)
+                        })
                     }),
                     Tables = template.CoverPage.Tables.OrderBy(x => x.Order).Select(x => new
                     {
@@ -357,8 +441,8 @@ namespace WordGenerator.Api.Controllers
                             r.Id,
                             r.RowNumber,
                             Cells = r.Cells
-                                .Where(c => c.Column != null)  // فیلتر کردن سلول‌های با Column null
-                                .OrderBy(c => c.Column?.Order ?? 0)  // استفاده از null coalescing
+                                .Where(c => c.Column != null)
+                                .OrderBy(c => c.Column.Order)
                                 .Select(c => new
                                 {
                                     c.Id,
@@ -382,6 +466,23 @@ namespace WordGenerator.Api.Controllers
                         p.Text,
                         p.Order
                     }),
+                    ImageGroups = x.ImageGroups.OrderBy(g => g.Order).Select(g => new
+                    {
+                        g.Id,
+                        g.Title,
+                        g.Order,
+                        g.ImagesPerRow,
+                        Images = g.Images.OrderBy(i => i.Order).Select(i => new
+                        {
+                            i.Id,
+                            i.FileName,
+                            i.Caption,
+                            i.Order,
+                            i.Width,
+                            i.Height,
+                            ImageBase64 = Convert.ToBase64String(i.ImageData)
+                        })
+                    }),
                     SubSections = x.SubSections.OrderBy(s => s.Order).Select((s, subIndex) => new
                     {
                         s.Id,
@@ -394,6 +495,23 @@ namespace WordGenerator.Api.Controllers
                             p.Id,
                             p.Text,
                             p.Order
+                        }),
+                        ImageGroups = s.ImageGroups.OrderBy(g => g.Order).Select(g => new
+                        {
+                            g.Id,
+                            g.Title,
+                            g.Order,
+                            g.ImagesPerRow,
+                            Images = g.Images.OrderBy(i => i.Order).Select(i => new
+                            {
+                                i.Id,
+                                i.FileName,
+                                i.Caption,
+                                i.Order,
+                                i.Width,
+                                i.Height,
+                                ImageBase64 = Convert.ToBase64String(i.ImageData)
+                            })
                         }),
                         Tables = s.Tables.OrderBy(t => t.Order).Select(t => new
                         {
@@ -415,8 +533,8 @@ namespace WordGenerator.Api.Controllers
                                 r.Id,
                                 r.RowNumber,
                                 Cells = r.Cells
-                                    .Where(c => c.Column != null)  // فیلتر کردن سلول‌های با Column null
-                                    .OrderBy(c => c.Column?.Order ?? 0)
+                                    .Where(c => c.Column != null)
+                                    .OrderBy(c => c.Column.Order)
                                     .Select(c => new
                                     {
                                         c.Id,
@@ -446,8 +564,8 @@ namespace WordGenerator.Api.Controllers
                             r.Id,
                             r.RowNumber,
                             Cells = r.Cells
-                                .Where(c => c.Column != null)  // فیلتر کردن سلول‌های با Column null
-                                .OrderBy(c => c.Column?.Order ?? 0)
+                                .Where(c => c.Column != null)
+                                .OrderBy(c => c.Column.Order)
                                 .Select(c => new
                                 {
                                     c.Id,
@@ -469,6 +587,23 @@ namespace WordGenerator.Api.Controllers
                         p.Text,
                         p.Order
                     }),
+                    ImageGroups = x.ImageGroups.OrderBy(g => g.Order).Select(g => new
+                    {
+                        g.Id,
+                        g.Title,
+                        g.Order,
+                        g.ImagesPerRow,
+                        Images = g.Images.OrderBy(i => i.Order).Select(i => new
+                        {
+                            i.Id,
+                            i.FileName,
+                            i.Caption,
+                            i.Order,
+                            i.Width,
+                            i.Height,
+                            ImageBase64 = Convert.ToBase64String(i.ImageData)
+                        })
+                    }),
                     Tables = x.Tables.OrderBy(t => t.Order).Select(t => new
                     {
                         t.Id,
@@ -489,8 +624,8 @@ namespace WordGenerator.Api.Controllers
                             r.Id,
                             r.RowNumber,
                             Cells = r.Cells
-                                .Where(c => c.Column != null)  // فیلتر کردن سلول‌های با Column null
-                                .OrderBy(c => c.Column?.Order ?? 0)
+                                .Where(c => c.Column != null)
+                                .OrderBy(c => c.Column.Order)
                                 .Select(c => new
                                 {
                                     c.Id,
@@ -524,9 +659,6 @@ namespace WordGenerator.Api.Controllers
         // =========================
         // UPDATE TEMPLATE
         // =========================
-        // =========================
-        // UPDATE TEMPLATE - COMPLETE MANUAL DELETE (بدون Cascade)
-        // =========================
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(long id, CreateDocumentTemplateDto dto)
         {
@@ -534,10 +666,12 @@ namespace WordGenerator.Api.Controllers
 
             try
             {
-                // پیدا کردن تمپلیت موجود با تمام وابستگی‌ها
                 var existingTemplate = await _context.DocumentTemplates
                     .Include(x => x.CoverPage)
                         .ThenInclude(x => x.Items)
+                    .Include(x => x.CoverPage)
+                        .ThenInclude(x => x.ImageGroups)
+                            .ThenInclude(g => g.Images)
                     .Include(x => x.CoverPage)
                         .ThenInclude(x => x.Tables)
                             .ThenInclude(t => t.Columns)
@@ -548,8 +682,15 @@ namespace WordGenerator.Api.Controllers
                     .Include(x => x.MasterSections)
                         .ThenInclude(m => m.Paragraphs)
                     .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.ImageGroups)
+                            .ThenInclude(g => g.Images)
+                    .Include(x => x.MasterSections)
                         .ThenInclude(m => m.SubSections)
                             .ThenInclude(s => s.Paragraphs)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.SubSections)
+                            .ThenInclude(s => s.ImageGroups)
+                                .ThenInclude(g => g.Images)
                     .Include(x => x.MasterSections)
                         .ThenInclude(m => m.SubSections)
                             .ThenInclude(s => s.Tables)
@@ -569,6 +710,9 @@ namespace WordGenerator.Api.Controllers
                     .Include(x => x.Sections)
                         .ThenInclude(s => s.Paragraphs)
                     .Include(x => x.Sections)
+                        .ThenInclude(s => s.ImageGroups)
+                            .ThenInclude(g => g.Images)
+                    .Include(x => x.Sections)
                         .ThenInclude(s => s.Tables)
                             .ThenInclude(t => t.Columns)
                     .Include(x => x.Sections)
@@ -580,208 +724,178 @@ namespace WordGenerator.Api.Controllers
                 if (existingTemplate == null)
                     return NotFound();
 
-                // ========== حذف دستی همه وابستگی‌ها (به ترتیب از پایین به بالا) ==========
-
-                // 1. حذف سلول‌های جداول
+                // ========== 1. Delete Cells ==========
                 if (existingTemplate.CoverPage != null)
                 {
                     foreach (var table in existingTemplate.CoverPage.Tables)
-                    {
                         foreach (var row in table.Rows)
-                        {
-                            if (row.Cells.Any())
-                                _context.TableCells.RemoveRange(row.Cells);
-                        }
-                    }
+                            if (row.Cells.Any()) _context.TableCells.RemoveRange(row.Cells);
                 }
 
                 foreach (var master in existingTemplate.MasterSections)
                 {
                     foreach (var table in master.Tables)
-                    {
                         foreach (var row in table.Rows)
-                        {
-                            if (row.Cells.Any())
-                                _context.TableCells.RemoveRange(row.Cells);
-                        }
-                    }
+                            if (row.Cells.Any()) _context.TableCells.RemoveRange(row.Cells);
+
                     foreach (var sub in master.SubSections)
-                    {
                         foreach (var table in sub.Tables)
-                        {
                             foreach (var row in table.Rows)
-                            {
-                                if (row.Cells.Any())
-                                    _context.TableCells.RemoveRange(row.Cells);
-                            }
-                        }
-                    }
+                                if (row.Cells.Any()) _context.TableCells.RemoveRange(row.Cells);
                 }
 
                 foreach (var section in existingTemplate.Sections)
                 {
                     foreach (var table in section.Tables)
-                    {
                         foreach (var row in table.Rows)
-                        {
-                            if (row.Cells.Any())
-                                _context.TableCells.RemoveRange(row.Cells);
-                        }
-                    }
+                            if (row.Cells.Any()) _context.TableCells.RemoveRange(row.Cells);
                 }
                 await _context.SaveChangesAsync();
 
-                // 2. حذف ردیف‌های جداول
+                // ========== 2. Delete Rows ==========
                 if (existingTemplate.CoverPage != null)
-                {
                     foreach (var table in existingTemplate.CoverPage.Tables)
-                    {
-                        if (table.Rows.Any())
-                            _context.TableRows.RemoveRange(table.Rows);
-                    }
-                }
+                        if (table.Rows.Any()) _context.TableRows.RemoveRange(table.Rows);
 
                 foreach (var master in existingTemplate.MasterSections)
                 {
                     foreach (var table in master.Tables)
-                    {
-                        if (table.Rows.Any())
-                            _context.TableRows.RemoveRange(table.Rows);
-                    }
+                        if (table.Rows.Any()) _context.TableRows.RemoveRange(table.Rows);
                     foreach (var sub in master.SubSections)
-                    {
                         foreach (var table in sub.Tables)
-                        {
-                            if (table.Rows.Any())
-                                _context.TableRows.RemoveRange(table.Rows);
-                        }
-                    }
+                            if (table.Rows.Any()) _context.TableRows.RemoveRange(table.Rows);
                 }
 
                 foreach (var section in existingTemplate.Sections)
-                {
                     foreach (var table in section.Tables)
-                    {
-                        if (table.Rows.Any())
-                            _context.TableRows.RemoveRange(table.Rows);
-                    }
-                }
+                        if (table.Rows.Any()) _context.TableRows.RemoveRange(table.Rows);
                 await _context.SaveChangesAsync();
 
-                // 3. حذف ستون‌های جداول
+                // ========== 3. Delete Columns ==========
                 if (existingTemplate.CoverPage != null)
-                {
                     foreach (var table in existingTemplate.CoverPage.Tables)
-                    {
-                        if (table.Columns.Any())
-                            _context.TableColumns.RemoveRange(table.Columns);
-                    }
-                }
+                        if (table.Columns.Any()) _context.TableColumns.RemoveRange(table.Columns);
 
                 foreach (var master in existingTemplate.MasterSections)
                 {
                     foreach (var table in master.Tables)
+                        if (table.Columns.Any()) _context.TableColumns.RemoveRange(table.Columns);
+                    foreach (var sub in master.SubSections)
+                        foreach (var table in sub.Tables)
+                            if (table.Columns.Any()) _context.TableColumns.RemoveRange(table.Columns);
+                }
+
+                foreach (var section in existingTemplate.Sections)
+                    foreach (var table in section.Tables)
+                        if (table.Columns.Any()) _context.TableColumns.RemoveRange(table.Columns);
+                await _context.SaveChangesAsync();
+
+                // ========== 4. Delete Tables ==========
+                if (existingTemplate.CoverPage != null && existingTemplate.CoverPage.Tables.Any())
+                    _context.DynamicTables.RemoveRange(existingTemplate.CoverPage.Tables);
+
+                foreach (var master in existingTemplate.MasterSections)
+                {
+                    if (master.Tables.Any()) _context.DynamicTables.RemoveRange(master.Tables);
+                    foreach (var sub in master.SubSections)
+                        if (sub.Tables.Any()) _context.DynamicTables.RemoveRange(sub.Tables);
+                }
+
+                foreach (var section in existingTemplate.Sections)
+                    if (section.Tables.Any()) _context.DynamicTables.RemoveRange(section.Tables);
+                await _context.SaveChangesAsync();
+
+                // ========== 5. Delete Paragraphs ==========
+                foreach (var master in existingTemplate.MasterSections)
+                {
+                    if (master.Paragraphs.Any()) _context.MasterSectionParagraphs.RemoveRange(master.Paragraphs);
+                    foreach (var sub in master.SubSections)
+                        if (sub.Paragraphs.Any()) _context.SubSectionParagraphs.RemoveRange(sub.Paragraphs);
+                }
+
+                foreach (var section in existingTemplate.Sections)
+                    if (section.Paragraphs.Any()) _context.SectionParagraphs.RemoveRange(section.Paragraphs);
+                await _context.SaveChangesAsync();
+
+                // ========== 6. Delete ImageGroups and Images ==========
+                if (existingTemplate.CoverPage != null && existingTemplate.CoverPage.ImageGroups.Any())
+                {
+                    foreach (var group in existingTemplate.CoverPage.ImageGroups)
                     {
-                        if (table.Columns.Any())
-                            _context.TableColumns.RemoveRange(table.Columns);
+                        if (group.Images.Any())
+                            _context.Images.RemoveRange(group.Images);
+                    }
+                    _context.ImageGroups.RemoveRange(existingTemplate.CoverPage.ImageGroups);
+                }
+
+                foreach (var master in existingTemplate.MasterSections)
+                {
+                    if (master.ImageGroups.Any())
+                    {
+                        foreach (var group in master.ImageGroups)
+                        {
+                            if (group.Images.Any())
+                                _context.Images.RemoveRange(group.Images);
+                        }
+                        _context.ImageGroups.RemoveRange(master.ImageGroups);
                     }
                     foreach (var sub in master.SubSections)
                     {
-                        foreach (var table in sub.Tables)
+                        if (sub.ImageGroups.Any())
                         {
-                            if (table.Columns.Any())
-                                _context.TableColumns.RemoveRange(table.Columns);
+                            foreach (var group in sub.ImageGroups)
+                            {
+                                if (group.Images.Any())
+                                    _context.Images.RemoveRange(group.Images);
+                            }
+                            _context.ImageGroups.RemoveRange(sub.ImageGroups);
                         }
                     }
                 }
 
                 foreach (var section in existingTemplate.Sections)
                 {
-                    foreach (var table in section.Tables)
+                    if (section.ImageGroups.Any())
                     {
-                        if (table.Columns.Any())
-                            _context.TableColumns.RemoveRange(table.Columns);
+                        foreach (var group in section.ImageGroups)
+                        {
+                            if (group.Images.Any())
+                                _context.Images.RemoveRange(group.Images);
+                        }
+                        _context.ImageGroups.RemoveRange(section.ImageGroups);
                     }
                 }
                 await _context.SaveChangesAsync();
 
-                // 4. حذف جداول
-                if (existingTemplate.CoverPage != null)
-                {
-                    if (existingTemplate.CoverPage.Tables.Any())
-                        _context.DynamicTables.RemoveRange(existingTemplate.CoverPage.Tables);
-                }
-
+                // ========== 7. Delete SubSections ==========
                 foreach (var master in existingTemplate.MasterSections)
-                {
-                    if (master.Tables.Any())
-                        _context.DynamicTables.RemoveRange(master.Tables);
-                    foreach (var sub in master.SubSections)
-                    {
-                        if (sub.Tables.Any())
-                            _context.DynamicTables.RemoveRange(sub.Tables);
-                    }
-                }
-
-                foreach (var section in existingTemplate.Sections)
-                {
-                    if (section.Tables.Any())
-                        _context.DynamicTables.RemoveRange(section.Tables);
-                }
+                    if (master.SubSections.Any()) _context.SubSections.RemoveRange(master.SubSections);
                 await _context.SaveChangesAsync();
 
-                // 5. حذف پاراگراف‌ها
-                foreach (var master in existingTemplate.MasterSections)
-                {
-                    if (master.Paragraphs.Any())
-                        _context.MasterSectionParagraphs.RemoveRange(master.Paragraphs);
-                    foreach (var sub in master.SubSections)
-                    {
-                        if (sub.Paragraphs.Any())
-                            _context.SubSectionParagraphs.RemoveRange(sub.Paragraphs);
-                    }
-                }
-
-                foreach (var section in existingTemplate.Sections)
-                {
-                    if (section.Paragraphs.Any())
-                        _context.SectionParagraphs.RemoveRange(section.Paragraphs);
-                }
-                await _context.SaveChangesAsync();
-
-                // 6. حذف زیربخش‌ها
-                foreach (var master in existingTemplate.MasterSections)
-                {
-                    if (master.SubSections.Any())
-                        _context.SubSections.RemoveRange(master.SubSections);
-                }
-                await _context.SaveChangesAsync();
-
-                // 7. حذف بخش‌های اصلی
+                // ========== 8. Delete MasterSections ==========
                 if (existingTemplate.MasterSections.Any())
                     _context.MasterSections.RemoveRange(existingTemplate.MasterSections);
                 await _context.SaveChangesAsync();
 
-                // 8. حذف بخش‌های قدیمی
+                // ========== 9. Delete Sections ==========
                 if (existingTemplate.Sections.Any())
                     _context.TemplateSections.RemoveRange(existingTemplate.Sections);
                 await _context.SaveChangesAsync();
 
-                // 9. حذف آیتم‌های کاورپیج
-                if (existingTemplate.CoverPage != null && existingTemplate.CoverPage.Items.Any())
-                    _context.CoverPageItems.RemoveRange(existingTemplate.CoverPage.Items);
-                await _context.SaveChangesAsync();
-
-                // 10. حذف کاورپیج
+                // ========== 10. Delete CoverPage Items & CoverPage ==========
                 if (existingTemplate.CoverPage != null)
+                {
+                    if (existingTemplate.CoverPage.Items.Any())
+                        _context.CoverPageItems.RemoveRange(existingTemplate.CoverPage.Items);
                     _context.CoverPageTemplates.Remove(existingTemplate.CoverPage);
+                }
                 await _context.SaveChangesAsync();
 
-                // 11. حذف خود تمپلیت
+                // ========== 11. Delete Template ==========
                 _context.DocumentTemplates.Remove(existingTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== ایجاد تمپلیت جدید ==========
+                // ========== 12. Create New Template ==========
                 var newTemplate = new DocumentTemplate
                 {
                     Name = dto.Name,
@@ -794,6 +908,21 @@ namespace WordGenerator.Api.Controllers
                             Value = x.Value,
                             Order = x.Order
                         }).ToList(),
+                        ImageGroups = dto.CoverPage.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
+                        {
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         Tables = dto.CoverPage.Tables.Select(x => new DynamicTable
                         {
                             Title = x.Title,
@@ -818,6 +947,21 @@ namespace WordGenerator.Api.Controllers
                             Text = p.Text,
                             Order = p.Order
                         }).ToList(),
+                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
+                        {
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         SubSections = x.SubSections.OrderBy(s => s.Order).Select(s => new SubSection
                         {
                             Title = s.Title,
@@ -828,6 +972,21 @@ namespace WordGenerator.Api.Controllers
                                 Text = p.Text,
                                 Order = p.Order
                             }).ToList(),
+                            ImageGroups = s.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
+                            {
+                                Title = g.Title,
+                                Order = g.Order,
+                                ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                                Images = g.Images.Select(img => new ImageItem
+                                {
+                                    FileName = img.FileName,
+                                    Caption = img.Caption,
+                                    Order = img.Order,
+                                    Width = img.Width,
+                                    Height = img.Height,
+                                    ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                                }).ToList()
+                            }).ToList() ?? new List<ImageGroup>(),
                             Tables = s.Tables.Select(t => new DynamicTable
                             {
                                 Title = t.Title,
@@ -865,6 +1024,21 @@ namespace WordGenerator.Api.Controllers
                             Text = p.Text,
                             Order = p.Order
                         }).ToList(),
+                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
+                        {
+                            Title = g.Title,
+                            Order = g.Order,
+                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
+                            Images = g.Images.Select(img => new ImageItem
+                            {
+                                FileName = img.FileName,
+                                Caption = img.Caption,
+                                Order = img.Order,
+                                Width = img.Width,
+                                Height = img.Height,
+                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
+                            }).ToList()
+                        }).ToList() ?? new List<ImageGroup>(),
                         Tables = x.Tables.Select(t => new DynamicTable
                         {
                             Title = t.Title,
@@ -884,7 +1058,6 @@ namespace WordGenerator.Api.Controllers
                 _context.DocumentTemplates.Add(newTemplate);
                 await _context.SaveChangesAsync();
 
-                // اضافه کردن ردیف‌ها و سلول‌های جداول
                 await AddAllTableRowsAndCells(dto, newTemplate);
                 await _context.SaveChangesAsync();
 

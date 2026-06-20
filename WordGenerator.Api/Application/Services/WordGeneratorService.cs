@@ -1,14 +1,20 @@
 ﻿using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using DocumentFormat.OpenXml.Drawing;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 using WordGenerator.Api.Application.DTOs;
 using WordGenerator.Api.Application.Requests;
 using WordGenerator.Api.Domain.Entities;
 using WordGenerator.Api.Infra.Context;
-using Docx = DocumentFormat.OpenXml.Wordprocessing;
 
+// ===== Using aliases =====
+using W = DocumentFormat.OpenXml.Wordprocessing;
+using D = DocumentFormat.OpenXml.Drawing;
+using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
+using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
+// =========================
 namespace WordGenerator.Api.Application.Services
 {
     public class WordGeneratorService
@@ -20,10 +26,10 @@ namespace WordGenerator.Api.Application.Services
         private const string EnglishFont = "Times New Roman";
         private const string PersianFontSize = "28";
         private const string EnglishFontSize = "24";
-        private const string MasterHeaderFontSize = "32";     // 16 pt for Master Section
-        private const string SubHeaderFontSize = "28";        // 14 pt for Sub Section
+        private const string MasterHeaderFontSize = "32";
+        private const string SubHeaderFontSize = "28";
         private const string TableHeaderFontSize = "22";
-        private const string CoverTitleFontSize = "32";       // 16 pt for cover title
+        private const string CoverTitleFontSize = "32";
 
         public WordGeneratorService(AppDbContext context)
         {
@@ -39,22 +45,35 @@ namespace WordGenerator.Api.Application.Services
             using (var doc = WordprocessingDocument.Create(ms, WordprocessingDocumentType.Document))
             {
                 var mainPart = doc.AddMainDocumentPart();
-                mainPart.Document = new Document();
+                mainPart.Document = new W.Document();
                 AddStylesToDocument(mainPart);
-                var body = new Body();
+                var body = new W.Body();
 
                 // Cover Page
                 if (document.CoverPage != null)
                 {
                     body.Append(CreateCoverPageFromDto(document.CoverPage));
 
+                    // تصاویر کاورپیج
+                    foreach (var image in document.CoverPage.Images.OrderBy(x => x.Order))
+                    {
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Center },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, image, mainPart);
+                        body.Append(imageParagraph);
+                    }
+
                     foreach (var table in document.CoverPage.Tables.OrderBy(x => x.Order))
                     {
                         body.Append(CreateTableFromDto(table));
-                        body.Append(new Paragraph(new Run(new Break())));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
                     }
 
-                    body.Append(new Paragraph(new Run(new Break() { Type = BreakValues.Page })));
+                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
                 }
 
                 // Table of Contents
@@ -62,8 +81,8 @@ namespace WordGenerator.Api.Application.Services
                 {
                     body.Append(CreateHeading("فهرست مطالب", "32"));
                     body.Append(CreateTableOfContents());
-                    body.Append(new Paragraph(new Run(new Text(""))));
-                    body.Append(new Paragraph(new Run(new Break() { Type = BreakValues.Page })));
+                    body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
                 }
 
                 // Master Sections (Hierarchical)
@@ -72,23 +91,32 @@ namespace WordGenerator.Api.Application.Services
                 {
                     masterCounter++;
 
-                    // Master Section with page break and center alignment
                     body.Append(CreateMasterHeading(masterSection.Title, masterCounter.ToString()));
 
-                    // Direct paragraphs of MasterSection
                     foreach (var paragraph in masterSection.Paragraphs.OrderBy(x => x.Order))
                     {
                         body.Append(CreateParagraph(paragraph.Text));
                     }
 
-                    // Direct tables of MasterSection
+                    // تصاویر بخش اصلی
+                    foreach (var image in masterSection.Images.OrderBy(x => x.Order))
+                    {
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Center },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, image, mainPart);
+                        body.Append(imageParagraph);
+                    }
+
                     foreach (var table in masterSection.Tables.OrderBy(x => x.Order))
                     {
                         body.Append(CreateTableFromDto(table));
-                        body.Append(new Paragraph(new Run(new Break())));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
                     }
 
-                    // Sub Sections
                     int subCounter = 0;
                     foreach (var subSection in masterSection.SubSections.OrderBy(x => x.Order))
                     {
@@ -100,10 +128,23 @@ namespace WordGenerator.Api.Application.Services
                             body.Append(CreateParagraph(paragraph.Text));
                         }
 
+                        // تصاویر زیربخش
+                        foreach (var image in subSection.Images.OrderBy(x => x.Order))
+                        {
+                            var imageParagraph = new W.Paragraph(
+                                new W.ParagraphProperties(
+                                    new W.Justification { Val = W.JustificationValues.Center },
+                                    new W.SpacingBetweenLines { After = "200" }
+                                )
+                            );
+                            InsertImageToParagraph(imageParagraph, image, mainPart);
+                            body.Append(imageParagraph);
+                        }
+
                         foreach (var table in subSection.Tables.OrderBy(x => x.Order))
                         {
                             body.Append(CreateTableFromDto(table));
-                            body.Append(new Paragraph(new Run(new Break())));
+                            body.Append(new W.Paragraph(new W.Run(new W.Break())));
                         }
                     }
                 }
@@ -118,10 +159,23 @@ namespace WordGenerator.Api.Application.Services
                         body.Append(CreateParagraph(paragraph.Text));
                     }
 
+                    // تصاویر بخش قدیمی
+                    foreach (var image in section.Images.OrderBy(x => x.Order))
+                    {
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Center },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, image, mainPart);
+                        body.Append(imageParagraph);
+                    }
+
                     foreach (var table in section.Tables.OrderBy(x => x.Order))
                     {
                         body.Append(CreateTableFromDto(table));
-                        body.Append(new Paragraph(new Run(new Break())));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
                     }
                 }
 
@@ -138,6 +192,8 @@ namespace WordGenerator.Api.Application.Services
                 .Include(x => x.CoverPage)
                     .ThenInclude(x => x.Items)
                 .Include(x => x.CoverPage)
+                    .ThenInclude(x => x.Images)
+                .Include(x => x.CoverPage)
                     .ThenInclude(x => x.Tables)
                         .ThenInclude(t => t.Columns)
                 .Include(x => x.CoverPage)
@@ -147,8 +203,13 @@ namespace WordGenerator.Api.Application.Services
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.Paragraphs)
                 .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.Images)
+                .Include(x => x.MasterSections)
                     .ThenInclude(m => m.SubSections)
                         .ThenInclude(s => s.Paragraphs)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.SubSections)
+                        .ThenInclude(s => s.Images)
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.SubSections)
                         .ThenInclude(s => s.Tables)
@@ -167,6 +228,8 @@ namespace WordGenerator.Api.Application.Services
                             .ThenInclude(r => r.Cells)
                 .Include(x => x.Sections)
                     .ThenInclude(s => s.Paragraphs)
+                .Include(x => x.Sections)
+                    .ThenInclude(s => s.Images)
                 .Include(x => x.Sections)
                     .ThenInclude(s => s.Tables)
                         .ThenInclude(t => t.Columns)
@@ -191,29 +254,42 @@ namespace WordGenerator.Api.Application.Services
             using (var doc = WordprocessingDocument.Create(ms, WordprocessingDocumentType.Document))
             {
                 var mainPart = doc.AddMainDocumentPart();
-                mainPart.Document = new Document();
+                mainPart.Document = new W.Document();
                 AddStylesToDocument(mainPart);
-                var body = new Body();
+                var body = new W.Body();
 
                 // Cover Page
                 if (template.CoverPage != null)
                 {
                     body.Append(CreateCoverPageFromEntity(template.CoverPage));
 
+                    // تصاویر کاورپیج
+                    foreach (var image in template.CoverPage.Images.OrderBy(x => x.Order))
+                    {
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Center },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, MapImageToDto(image), mainPart);
+                        body.Append(imageParagraph);
+                    }
+
                     foreach (var table in template.CoverPage.Tables.OrderBy(x => x.Order))
                     {
                         body.Append(CreateTableFromEntity(table));
-                        body.Append(new Paragraph(new Run(new Break())));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
                     }
 
-                    body.Append(new Paragraph(new Run(new Break() { Type = BreakValues.Page })));
+                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
                 }
 
                 // Table of Contents
                 body.Append(CreateHeading("فهرست مطالب", "32"));
                 body.Append(CreateTableOfContents());
-                body.Append(new Paragraph(new Run(new Text(""))));
-                body.Append(new Paragraph(new Run(new Break() { Type = BreakValues.Page })));
+                body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+                body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
 
                 // Master Sections
                 int masterCounter = 0;
@@ -227,10 +303,23 @@ namespace WordGenerator.Api.Application.Services
                         body.Append(CreateParagraph(paragraph.Text));
                     }
 
+                    // تصاویر بخش اصلی
+                    foreach (var image in masterSection.Images.OrderBy(x => x.Order))
+                    {
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Center },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, MapImageToDto(image), mainPart);
+                        body.Append(imageParagraph);
+                    }
+
                     foreach (var table in masterSection.Tables.OrderBy(x => x.Order))
                     {
                         body.Append(CreateTableFromEntity(table));
-                        body.Append(new Paragraph(new Run(new Break())));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
                     }
 
                     int subCounter = 0;
@@ -244,10 +333,23 @@ namespace WordGenerator.Api.Application.Services
                             body.Append(CreateParagraph(paragraph.Text));
                         }
 
+                        // تصاویر زیربخش
+                        foreach (var image in subSection.Images.OrderBy(x => x.Order))
+                        {
+                            var imageParagraph = new W.Paragraph(
+                                new W.ParagraphProperties(
+                                    new W.Justification { Val = W.JustificationValues.Center },
+                                    new W.SpacingBetweenLines { After = "200" }
+                                )
+                            );
+                            InsertImageToParagraph(imageParagraph, MapImageToDto(image), mainPart);
+                            body.Append(imageParagraph);
+                        }
+
                         foreach (var table in subSection.Tables.OrderBy(x => x.Order))
                         {
                             body.Append(CreateTableFromEntity(table));
-                            body.Append(new Paragraph(new Run(new Break())));
+                            body.Append(new W.Paragraph(new W.Run(new W.Break())));
                         }
                     }
                 }
@@ -262,10 +364,23 @@ namespace WordGenerator.Api.Application.Services
                         body.Append(CreateParagraph(paragraph.Text));
                     }
 
+                    // تصاویر بخش قدیمی
+                    foreach (var image in section.Images.OrderBy(x => x.Order))
+                    {
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Center },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, MapImageToDto(image), mainPart);
+                        body.Append(imageParagraph);
+                    }
+
                     foreach (var table in section.Tables.OrderBy(x => x.Order))
                     {
                         body.Append(CreateTableFromEntity(table));
-                        body.Append(new Paragraph(new Run(new Break())));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
                     }
                 }
 
@@ -283,85 +398,127 @@ namespace WordGenerator.Api.Application.Services
             using (var doc = WordprocessingDocument.Create(ms, WordprocessingDocumentType.Document))
             {
                 var mainPart = doc.AddMainDocumentPart();
-                mainPart.Document = new Document();
+                mainPart.Document = new W.Document();
                 AddStylesToDocument(mainPart);
-                var body = new Body();
+                var body = new W.Body();
 
-                // Cover Page
+                // ========== Cover Page ==========
                 if (request.CoverPage != null)
                 {
                     body.Append(CreateCoverPageFromDto(request.CoverPage));
 
+                    // تصاویر کاورپیج
+                    if (request.CoverPage.ImageGroups.Any())
+                    {
+                        foreach (var group in request.CoverPage.ImageGroups.OrderBy(x => x.Order))
+                        {
+                            InsertImageGroup(body, group, mainPart);
+                        }
+                    }
+
                     foreach (var table in request.CoverPage.Tables.OrderBy(x => x.Order))
                     {
                         body.Append(CreateTableFromDto(table));
-                        body.Append(new Paragraph(new Run(new Break())));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
                     }
 
-                    body.Append(new Paragraph(new Run(new Break() { Type = BreakValues.Page })));
+                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
                 }
 
-                // Table of Contents
+                // ========== Table of Contents ==========
                 if (request.IncludeTableOfContents)
                 {
                     body.Append(CreateHeading("فهرست مطالب", "32"));
                     body.Append(CreateTableOfContents());
-                    body.Append(new Paragraph(new Run(new Text(""))));
-                    body.Append(new Paragraph(new Run(new Break() { Type = BreakValues.Page })));
+                    body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
                 }
 
-                // Master Sections (Hierarchical)
+                // ========== Master Sections ==========
                 int masterCounter = 0;
                 foreach (var masterSection in request.MasterSections.OrderBy(x => x.Order))
                 {
                     masterCounter++;
-
                     body.Append(CreateMasterHeading(masterSection.Title, masterCounter.ToString()));
 
+                    // پاراگراف‌های بخش اصلی
                     foreach (var paragraph in masterSection.Paragraphs.OrderBy(x => x.Order))
                     {
                         body.Append(CreateParagraph(paragraph.Text));
                     }
 
+                    // تصاویر بخش اصلی
+                    if (masterSection.ImageGroups.Any())
+                    {
+                        foreach (var group in masterSection.ImageGroups.OrderBy(x => x.Order))
+                        {
+                            InsertImageGroup(body, group, mainPart);
+                        }
+                    }
+
+                    // جداول بخش اصلی
                     foreach (var table in masterSection.Tables.OrderBy(x => x.Order))
                     {
                         body.Append(CreateTableFromDto(table));
-                        body.Append(new Paragraph(new Run(new Break())));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
                     }
 
+                    // ========== Sub Sections ==========
                     int subCounter = 0;
                     foreach (var subSection in masterSection.SubSections.OrderBy(x => x.Order))
                     {
                         subCounter++;
                         body.Append(CreateSubHeading(subSection.Title, $"{subCounter}-{masterCounter}"));
 
+                        // پاراگراف‌های زیربخش
                         foreach (var paragraph in subSection.Paragraphs.OrderBy(x => x.Order))
                         {
                             body.Append(CreateParagraph(paragraph.Text));
                         }
 
+                        // تصاویر زیربخش
+                        if (subSection.ImageGroups.Any())
+                        {
+                            foreach (var group in subSection.ImageGroups.OrderBy(x => x.Order))
+                            {
+                                InsertImageGroup(body, group, mainPart);
+                            }
+                        }
+
+                        // جداول زیربخش
                         foreach (var table in subSection.Tables.OrderBy(x => x.Order))
                         {
                             body.Append(CreateTableFromDto(table));
-                            body.Append(new Paragraph(new Run(new Break())));
+                            body.Append(new W.Paragraph(new W.Run(new W.Break())));
                         }
                     }
                 }
 
-                // Legacy Sections
+                // ========== Legacy Sections ==========
                 foreach (var section in request.Sections.OrderBy(x => x.Order))
                 {
                     body.Append(CreateHeading(section.Title, "32"));
 
+                    // پاراگراف‌های بخش قدیمی
                     foreach (var paragraph in section.Paragraphs.OrderBy(x => x.Order))
                     {
                         body.Append(CreateParagraph(paragraph.Text));
                     }
 
+                    // تصاویر بخش قدیمی
+                    if (section.ImageGroups.Any())
+                    {
+                        foreach (var group in section.ImageGroups.OrderBy(x => x.Order))
+                        {
+                            InsertImageGroup(body, group, mainPart);
+                        }
+                    }
+
+                    // جداول بخش قدیمی
                     foreach (var table in section.Tables.OrderBy(x => x.Order))
                     {
                         body.Append(CreateTableFromDto(table));
-                        body.Append(new Paragraph(new Run(new Break())));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
                     }
                 }
 
@@ -371,87 +528,336 @@ namespace WordGenerator.Api.Application.Services
 
             return ms.ToArray();
         }
+        #endregion
+
+        #region Image Methods
+
+        private void InsertImageGroup(W.Body body, ImageGroupDto groupDto, MainDocumentPart mainPart)
+        {
+            if (groupDto.Images == null || !groupDto.Images.Any())
+                return;
+
+            var imageList = groupDto.Images.OrderBy(x => x.Order).ToList();
+            int totalImages = imageList.Count;
+
+            // عنوان گروه
+            if (!string.IsNullOrEmpty(groupDto.Title))
+            {
+                var titleParagraph = new W.Paragraph(
+                    new W.ParagraphProperties(
+                        new W.Justification { Val = W.JustificationValues.Center },
+                        new W.SpacingBetweenLines { After = "200" }
+                    )
+                );
+                body.Append(titleParagraph);
+            }
+
+            // اگر فقط یک عکس داریم
+            if (totalImages == 1)
+            {
+                var imageDto = imageList[0];
+                var imageParagraph = new W.Paragraph(
+                    new W.ParagraphProperties(
+                        new W.Justification { Val = W.JustificationValues.Center },
+                        new W.SpacingBetweenLines { After = "200" }
+                    )
+                );
+                InsertImageToParagraph(imageParagraph, imageDto, mainPart);
+                body.Append(imageParagraph);
+                return;
+            }
+
+            // ========== استفاده از جدول برای چیدمان ==========
+            var table = new W.Table();
+
+            var tableProps = new W.TableProperties(
+                new W.TableBorders(
+                    new W.TopBorder { Val = W.BorderValues.Nil },
+                    new W.BottomBorder { Val = W.BorderValues.Nil },
+                    new W.LeftBorder { Val = W.BorderValues.Nil },
+                    new W.RightBorder { Val = W.BorderValues.Nil },
+                    new W.InsideHorizontalBorder { Val = W.BorderValues.Nil },
+                    new W.InsideVerticalBorder { Val = W.BorderValues.Nil }
+                ),
+                new W.TableWidth { Width = "100%", Type = W.TableWidthUnitValues.Pct },
+                new W.TableLayout { Type = W.TableLayoutValues.Autofit },
+                new W.Justification { Val = W.JustificationValues.Center }
+            );
+            table.Append(tableProps);
+
+            int imagesPerRow = groupDto.ImagesPerRow > 0 ? groupDto.ImagesPerRow : 2;
+            int rowCount = (int)Math.Ceiling((double)totalImages / imagesPerRow);
+            double cellWidth = 100.0 / imagesPerRow;
+
+            int imageIndex = 0;
+            for (int row = 0; row < rowCount; row++)
+            {
+                var tableRow = new W.TableRow();
+                tableRow.Append(new W.TableRowProperties(
+                    new W.TableRowHeight { Val = 300, HeightType = W.HeightRuleValues.AtLeast }
+                ));
+
+                int imagesInThisRow = Math.Min(imagesPerRow, totalImages - imageIndex);
+                bool isLastRowSingle = (row == rowCount - 1 && imagesInThisRow == 1);
+
+                for (int col = 0; col < imagesPerRow && imageIndex < totalImages; col++)
+                {
+                    var imageDto = imageList[imageIndex];
+
+                    var cell = new W.TableCell();
+
+                    string cellWidthValue = isLastRowSingle ? "100" : cellWidth.ToString("0.00");
+
+                    var cellProps = new W.TableCellProperties(
+                        new W.TableCellWidth
+                        {
+                            Type = W.TableWidthUnitValues.Pct,
+                            Width = cellWidthValue
+                        },
+                        new W.TableCellVerticalAlignment { Val = W.TableVerticalAlignmentValues.Center },
+                        new W.Justification { Val = W.JustificationValues.Center }
+                    );
+                    cell.Append(cellProps);
+
+                    var imageParagraph = new W.Paragraph(
+                        new W.ParagraphProperties(
+                            new W.Justification { Val = W.JustificationValues.Center },
+                            new W.SpacingBetweenLines { After = "100" }
+                        )
+                    );
+
+                    InsertImageToParagraph(imageParagraph, imageDto, mainPart);
+
+                    cell.Append(imageParagraph);
+                    tableRow.Append(cell);
+
+                    imageIndex++;
+                }
+
+                // سلول‌های خالی برای تکمیل ردیف (فقط اگر تک عکس نباشه)
+                int emptyCells = imagesPerRow - (imageIndex % imagesPerRow);
+                if (emptyCells > 0 && emptyCells < imagesPerRow && !isLastRowSingle)
+                {
+                    for (int i = 0; i < emptyCells; i++)
+                    {
+                        var emptyCell = new W.TableCell();
+                        var emptyCellProps = new W.TableCellProperties(
+                            new W.TableCellWidth
+                            {
+                                Type = W.TableWidthUnitValues.Pct,
+                                Width = cellWidth.ToString("0.00")
+                            }
+                        );
+                        emptyCell.Append(emptyCellProps);
+                        tableRow.Append(emptyCell);
+                    }
+                }
+
+                table.Append(tableRow);
+            }
+
+            body.Append(table);
+        }
+
+        private void InsertImageToParagraph(W.Paragraph paragraph, ImageItemDto imageDto, MainDocumentPart mainPart)
+        {
+            if (string.IsNullOrEmpty(imageDto.ImageBase64))
+                return;
+
+            try
+            {
+                // تبدیل Base64 به بایت
+                var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+
+                // تشخیص نوع تصویر
+                var imagePartType = ImagePartType.Jpeg;
+                if (imageBytes.Length > 4)
+                {
+                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+                        imagePartType = ImagePartType.Png;
+                    else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
+                        imagePartType = ImagePartType.Jpeg;
+                }
+
+                // اضافه کردن ImagePart
+                var imagePart = mainPart.AddImagePart(imagePartType);
+                using (var stream = new MemoryStream(imageBytes))
+                {
+                    imagePart.FeedData(stream);
+                }
+                var imagePartId = mainPart.GetIdOfPart(imagePart);
+
+                // ابعاد (با مقدار ثابت برای تست)
+                long cx = 3000000L;
+                long cy = 2000000L;
+
+                // ساختن تصویر دقیقاً مثل OpenXmlReportRenderer
+                var run = new W.Run();
+
+                // استفاده از W.Drawing و DW.Inline
+                var drawing = new W.Drawing(
+                    new DW.Inline(
+                        new DW.Extent() { Cx = cx, Cy = cy },
+                        new DW.DocProperties()
+                        {
+                            Id = (UInt32Value)1U,
+                            Name = "Image"
+                        },
+                        new DW.NonVisualGraphicFrameDrawingProperties(
+                            new D.GraphicFrameLocks() { NoChangeAspect = true }
+                        ),
+                        new D.Graphic(
+                            new D.GraphicData(
+                                new PIC.Picture(
+                                    new PIC.NonVisualPictureProperties(
+                                        new PIC.NonVisualDrawingProperties()
+                                        {
+                                            Id = (UInt32Value)0U,
+                                            Name = "img.jpg"
+                                        },
+                                        new PIC.NonVisualPictureDrawingProperties()
+                                    ),
+                                    new PIC.BlipFill(
+                                        new D.Blip()
+                                        {
+                                            Embed = imagePartId
+                                        },
+                                        new D.Stretch(
+                                            new D.FillRectangle()
+                                        )
+                                    ),
+                                    new PIC.ShapeProperties(
+                                        new D.Transform2D(
+                                            new D.Offset() { X = 0L, Y = 0L },
+                                            new D.Extents()
+                                            {
+                                                Cx = cx,
+                                                Cy = cy
+                                            }
+                                        ),
+                                        new D.PresetGeometry(
+                                            new D.AdjustValueList()
+                                        )
+                                        { Preset = D.ShapeTypeValues.Rectangle }
+                                    )
+                                )
+                            )
+                            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
+                        )
+                    )
+                );
+
+                run.AppendChild(drawing);
+                paragraph.AppendChild(run);
+            }
+            catch (Exception ex)
+            {
+                // در صورت خطا، یک متن نمایش بده
+                var run = new W.Run(
+                    new W.RunProperties(
+                        new W.FontSize { Val = "24" },
+                        new W.Color { Val = "FF0000" }
+                    ),
+                    new W.Text($"[خطا در بارگذاری تصویر: {imageDto.FileName}]")
+                );
+                paragraph.AppendChild(run);
+            }
+        }
+
+        private ImageItemDto MapImageToDto(ImageItem image)
+        {
+            return new ImageItemDto
+            {
+                Id = image.Id,
+                FileName = image.FileName,
+                Caption = image.Caption,
+                Order = image.Order,
+                Width = image.Width,
+                Height = image.Height,
+                ImageBase64 = Convert.ToBase64String(image.ImageData)
+            };
+        }
 
         #endregion
 
         #region Heading Creation Methods
 
-        private Paragraph CreateMasterHeading(string text, string sectionNumber)
+        private W.Paragraph CreateMasterHeading(string text, string sectionNumber)
         {
-            var paragraph = new Paragraph(
-                new ParagraphProperties(
-                    new ParagraphStyleId() { Val = "Heading1" },
-                    new Justification() { Val = JustificationValues.Center },
-                    new BiDi(),
-                    new SpacingBetweenLines { After = "240", Before = "240" },
-                    new PageBreakBefore() // هر بخش اصلی در صفحه جدید شروع شود
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.ParagraphStyleId() { Val = "Heading1" },
+                    new W.Justification() { Val = W.JustificationValues.Center },
+                    new W.BiDi(),
+                    new W.SpacingBetweenLines { After = "240", Before = "240" },
+                    new W.PageBreakBefore()
                 ),
-                new Run(
-                    new RunProperties(
-                        new RunFonts()
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts()
                         {
                             Ascii = PersianFont,
                             HighAnsi = PersianFont,
                             ComplexScript = PersianFont
                         },
-                        new FontSize() { Val = MasterHeaderFontSize },
-                        new Bold()
+                        new W.FontSize() { Val = MasterHeaderFontSize },
+                        new W.Bold()
                     ),
-                    new Text(PrepareRTLText(text))
+                    new W.Text(PrepareRTLText(text))
                 )
             );
 
             return paragraph;
         }
 
-        private Paragraph CreateSubHeading(string text, string sectionNumber)
+        private W.Paragraph CreateSubHeading(string text, string sectionNumber)
         {
-            var paragraph = new Paragraph(
-                new ParagraphProperties(
-                    new ParagraphStyleId() { Val = "Heading2" },
-                    new Justification() { Val = JustificationValues.Left },
-                    new BiDi(),
-                    new SpacingBetweenLines { After = "120", Before = "120" }
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.ParagraphStyleId() { Val = "Heading2" },
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.BiDi(),
+                    new W.SpacingBetweenLines { After = "120", Before = "120" }
                 ),
-                new Run(
-                    new RunProperties(
-                        new RunFonts()
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts()
                         {
                             Ascii = PersianFont,
                             HighAnsi = PersianFont,
                             ComplexScript = PersianFont
                         },
-                        new FontSize() { Val = SubHeaderFontSize },
-                        new Bold()
+                        new W.FontSize() { Val = SubHeaderFontSize },
+                        new W.Bold()
                     ),
-                    new Text(PrepareRTLText($"{sectionNumber}- {text}"))
+                    new W.Text(PrepareRTLText($"{sectionNumber}- {text}"))
                 )
             );
 
             return paragraph;
         }
 
-        private Paragraph CreateHeading(string text, string fontSize)
+        private W.Paragraph CreateHeading(string text, string fontSize)
         {
-            return new Paragraph(
-                new ParagraphProperties(
-                    new ParagraphStyleId() { Val = "Heading1" },
-                    new Justification() { Val = JustificationValues.Left },
-                    new BiDi(),
-                    new SpacingBetweenLines { After = "240" }
+            return new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.ParagraphStyleId() { Val = "Heading1" },
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.BiDi(),
+                    new W.SpacingBetweenLines { After = "240" }
                 ),
-                new Run(
-                    new RunProperties(
-                        new RunFonts()
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts()
                         {
                             Ascii = PersianFont,
                             HighAnsi = PersianFont,
                             ComplexScript = PersianFont
                         },
-                        new FontSize() { Val = fontSize },
-                        new Bold()
+                        new W.FontSize() { Val = fontSize },
+                        new W.Bold()
                     ),
-                    new Text(PrepareRTLText(text))
+                    new W.Text(PrepareRTLText(text))
                 )
             );
         }
@@ -460,31 +866,29 @@ namespace WordGenerator.Api.Application.Services
 
         #region Table Creation - DTO Version
 
-        private Docx.Table CreateTableFromDto(TableDataDto tableData)
+        private W.Table CreateTableFromDto(TableDataDto tableData)
         {
-            var table = new Docx.Table();
+            var table = new W.Table();
 
-            // تنظیم Borderهای جدول
-            var tableProperties = new TableProperties();
-            var tableBorders = new TableBorders(
-                new TopBorder { Val = BorderValues.Single, Size = 12, Color = "2E75B6" },     // border بالا پررنگ
-                new BottomBorder { Val = BorderValues.Single, Size = 12, Color = "2E75B6" },  // border پایین پررنگ
-                new LeftBorder { Val = BorderValues.Nil },
-                new RightBorder { Val = BorderValues.Nil },
-                new InsideHorizontalBorder { Val = BorderValues.Single, Size = 1, Color = "AAAAAA" },
-                new InsideVerticalBorder { Val = BorderValues.Nil }
+            var tableProperties = new W.TableProperties();
+            var tableBorders = new W.TableBorders(
+                new W.TopBorder { Val = W.BorderValues.Single, Size = 12, Color = "2E75B6" },
+                new W.BottomBorder { Val = W.BorderValues.Single, Size = 12, Color = "2E75B6" },
+                new W.LeftBorder { Val = W.BorderValues.Nil },
+                new W.RightBorder { Val = W.BorderValues.Nil },
+                new W.InsideHorizontalBorder { Val = W.BorderValues.Single, Size = 1, Color = "AAAAAA" },
+                new W.InsideVerticalBorder { Val = W.BorderValues.Nil }
             );
 
             tableProperties.Append(tableBorders);
-            tableProperties.Append(new TableWidth { Width = "100%", Type = TableWidthUnitValues.Pct });
-            tableProperties.Append(new TableLayout { Type = TableLayoutValues.Autofit });
-            tableProperties.Append(new Justification { Val = JustificationValues.Center });
+            tableProperties.Append(new W.TableWidth { Width = "100%", Type = W.TableWidthUnitValues.Pct });
+            tableProperties.Append(new W.TableLayout { Type = W.TableLayoutValues.Autofit });
+            tableProperties.Append(new W.Justification { Val = W.JustificationValues.Center });
 
             table.Append(tableProperties);
 
             var columns = tableData.Columns.OrderBy(x => x.Order).ToList();
 
-            // محاسبه عرض ستون‌ها
             var totalWidth = 5000;
             var fixedWidthColumns = columns.Where(c => c.Width > 0).ToList();
             var autoWidthColumns = columns.Where(c => c.Width == 0).ToList();
@@ -492,9 +896,8 @@ namespace WordGenerator.Api.Application.Services
             var remainingWidth = totalWidth - fixedWidth;
             var autoWidth = autoWidthColumns.Count > 0 ? remainingWidth / autoWidthColumns.Count : 0;
 
-            // Header row (بدون رنگ پس‌زمینه)
-            var headerRow = new Docx.TableRow();
-            headerRow.Append(new TableRowProperties(new TableRowHeight { Val = 400, HeightType = HeightRuleValues.AtLeast }));
+            var headerRow = new W.TableRow();
+            headerRow.Append(new W.TableRowProperties(new W.TableRowHeight { Val = 400, HeightType = W.HeightRuleValues.AtLeast }));
 
             if (tableData.ShowRowNumbers)
             {
@@ -508,15 +911,13 @@ namespace WordGenerator.Api.Application.Services
             }
             table.Append(headerRow);
 
-            // Data rows - با رنگ‌بندی ردیف‌های فرد و زوج
             int rowIndex = 0;
             foreach (var row in tableData.Rows.OrderBy(x => x.RowNumber))
             {
-                var dataRow = new Docx.TableRow();
-                dataRow.Append(new TableRowProperties(new TableRowHeight { Val = 300, HeightType = HeightRuleValues.AtLeast }));
+                var dataRow = new W.TableRow();
+                dataRow.Append(new W.TableRowProperties(new W.TableRowHeight { Val = 300, HeightType = W.HeightRuleValues.AtLeast }));
 
-                // تعیین رنگ پس‌زمینه برای این ردیف
-                string rowBackgroundColor = (rowIndex % 2 == 0) ? "DAE9F7" : null;  // ردیف‌های فرد (0,2,4,...) رنگ بگیرند
+                string rowBackgroundColor = (rowIndex % 2 == 0) ? "DAE9F7" : null;
 
                 if (tableData.ShowRowNumbers)
                 {
@@ -536,26 +937,27 @@ namespace WordGenerator.Api.Application.Services
 
             return table;
         }
+
         #endregion
 
         #region Table Creation - Entity Version
 
-        private Docx.Table CreateTableFromEntity(DynamicTable dynamicTable)
+        private W.Table CreateTableFromEntity(DynamicTable dynamicTable)
         {
-            var table = new Docx.Table();
+            var table = new W.Table();
 
-            var tableProps = new TableProperties(
-                new TableBorders(
-                    new TopBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
-                    new BottomBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
-                    new LeftBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
-                    new RightBorder { Val = BorderValues.Single, Size = 4, Color = "000000" },
-                    new InsideHorizontalBorder { Val = BorderValues.Single, Size = 2, Color = "000000" },
-                    new InsideVerticalBorder { Val = BorderValues.Single, Size = 2, Color = "000000" }
+            var tableProps = new W.TableProperties(
+                new W.TableBorders(
+                    new W.TopBorder { Val = W.BorderValues.Single, Size = 4, Color = "000000" },
+                    new W.BottomBorder { Val = W.BorderValues.Single, Size = 4, Color = "000000" },
+                    new W.LeftBorder { Val = W.BorderValues.Single, Size = 4, Color = "000000" },
+                    new W.RightBorder { Val = W.BorderValues.Single, Size = 4, Color = "000000" },
+                    new W.InsideHorizontalBorder { Val = W.BorderValues.Single, Size = 2, Color = "000000" },
+                    new W.InsideVerticalBorder { Val = W.BorderValues.Single, Size = 2, Color = "000000" }
                 ),
-                new TableWidth { Width = "100%", Type = TableWidthUnitValues.Pct },
-                new TableLayout { Type = TableLayoutValues.Autofit },
-                new Justification { Val = JustificationValues.Center }
+                new W.TableWidth { Width = "100%", Type = W.TableWidthUnitValues.Pct },
+                new W.TableLayout { Type = W.TableLayoutValues.Autofit },
+                new W.Justification { Val = W.JustificationValues.Center }
             );
             table.Append(tableProps);
 
@@ -567,9 +969,8 @@ namespace WordGenerator.Api.Application.Services
             var remainingWidth = totalWidth - fixedWidth;
             var autoWidth = autoWidthColumns.Count > 0 ? remainingWidth / autoWidthColumns.Count : 0;
 
-            // Header row
-            var headerRow = new Docx.TableRow();
-            headerRow.Append(new TableRowProperties(new TableRowHeight { Val = 400, HeightType = HeightRuleValues.AtLeast }));
+            var headerRow = new W.TableRow();
+            headerRow.Append(new W.TableRowProperties(new W.TableRowHeight { Val = 400, HeightType = W.HeightRuleValues.AtLeast }));
 
             if (dynamicTable.ShowRowNumbers)
             {
@@ -583,11 +984,10 @@ namespace WordGenerator.Api.Application.Services
             }
             table.Append(headerRow);
 
-            // Data rows
             foreach (var row in dynamicTable.Rows.OrderBy(x => x.RowNumber))
             {
-                var dataRow = new Docx.TableRow();
-                dataRow.Append(new TableRowProperties(new TableRowHeight { Val = 300, HeightType = HeightRuleValues.AtLeast }));
+                var dataRow = new W.TableRow();
+                dataRow.Append(new W.TableRowProperties(new W.TableRowHeight { Val = 300, HeightType = W.HeightRuleValues.AtLeast }));
 
                 if (dynamicTable.ShowRowNumbers)
                 {
@@ -611,13 +1011,13 @@ namespace WordGenerator.Api.Application.Services
 
         #region Cover Page Creation
 
-        private Paragraph CreateCoverPageFromDto(CoverPageDataDto cover)
+        private W.Paragraph CreateCoverPageFromDto(CoverPageDataDto cover)
         {
-            var paragraph = new Paragraph(
-                new ParagraphProperties(
-                    new Justification { Val = JustificationValues.Center },
-                    new BiDi(),
-                    new SpacingBetweenLines { After = "300" }
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.Justification { Val = W.JustificationValues.Center },
+                    new W.BiDi(),
+                    new W.SpacingBetweenLines { After = "300" }
                 )
             );
 
@@ -625,7 +1025,7 @@ namespace WordGenerator.Api.Application.Services
             {
                 paragraph.Append(
                     CreateRunForCover(PrepareRTLText(cover.Title), true, true, CoverTitleFontSize),
-                    new Run(new Break())
+                    new W.Run(new W.Break())
                 );
             }
 
@@ -633,24 +1033,24 @@ namespace WordGenerator.Api.Application.Services
             {
                 paragraph.Append(
                     CreateRunForCover(PrepareRTLText(item.Label + ":"), true, false, "32"),
-                    new Run(new Break())
+                    new W.Run(new W.Break())
                 );
 
                 var runs = CreateRunsForText(PrepareRTLText(item.Value));
                 paragraph.Append(runs);
-                paragraph.Append(new Run(new Break()));
+                paragraph.Append(new W.Run(new W.Break()));
             }
 
             return paragraph;
         }
 
-        private Paragraph CreateCoverPageFromEntity(CoverPageTemplate cover)
+        private W.Paragraph CreateCoverPageFromEntity(CoverPageTemplate cover)
         {
-            var paragraph = new Paragraph(
-                new ParagraphProperties(
-                    new Justification { Val = JustificationValues.Center },
-                    new BiDi(),
-                    new SpacingBetweenLines { After = "300" }
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.Justification { Val = W.JustificationValues.Center },
+                    new W.BiDi(),
+                    new W.SpacingBetweenLines { After = "300" }
                 )
             );
 
@@ -658,7 +1058,7 @@ namespace WordGenerator.Api.Application.Services
             {
                 paragraph.Append(
                     CreateRunForCover(PrepareRTLText(cover.Title), true, true, CoverTitleFontSize),
-                    new Run(new Break())
+                    new W.Run(new W.Break())
                 );
             }
 
@@ -666,12 +1066,12 @@ namespace WordGenerator.Api.Application.Services
             {
                 paragraph.Append(
                     CreateRunForCover(PrepareRTLText(item.Label + ":"), true, false, "32"),
-                    new Run(new Break())
+                    new W.Run(new W.Break())
                 );
 
                 var runs = CreateRunsForText(PrepareRTLText(item.Value));
                 paragraph.Append(runs);
-                paragraph.Append(new Run(new Break()));
+                paragraph.Append(new W.Run(new W.Break()));
             }
 
             return paragraph;
@@ -681,22 +1081,22 @@ namespace WordGenerator.Api.Application.Services
 
         #region Paragraph Creation
 
-        private Paragraph CreateParagraph(string text)
+        private W.Paragraph CreateParagraph(string text)
         {
-            var paragraph = new Paragraph(
-                new ParagraphProperties(
-                    new BiDi(),
-                    new Justification() { Val = JustificationValues.Left },
-                    new Indentation() { FirstLine = "397" },
-                    new SpacingBetweenLines()
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.Indentation() { FirstLine = "397" },
+                    new W.SpacingBetweenLines()
                     {
                         Line = "360",
-                        LineRule = LineSpacingRuleValues.Auto
+                        LineRule = W.LineSpacingRuleValues.Auto
                     }
                 )
             );
 
-            var runs = new List<Run>();
+            var runs = new List<W.Run>();
             var current = new List<char>();
             bool? currentIsPersian = null;
             var preparedText = PrepareRTLText(text);
@@ -730,19 +1130,19 @@ namespace WordGenerator.Api.Application.Services
             return paragraph;
         }
 
-        private Run CreateRunForParagraph(string text, bool isPersian)
+        private W.Run CreateRunForParagraph(string text, bool isPersian)
         {
-            return new Run(
-                new RunProperties(
-                    new RunFonts()
+            return new W.Run(
+                new W.RunProperties(
+                    new W.RunFonts()
                     {
                         Ascii = isPersian ? PersianFont : EnglishFont,
                         HighAnsi = isPersian ? PersianFont : EnglishFont,
                         ComplexScript = isPersian ? PersianFont : EnglishFont
                     },
-                    new FontSize() { Val = isPersian ? PersianFontSize : EnglishFontSize }
+                    new W.FontSize() { Val = isPersian ? PersianFontSize : EnglishFontSize }
                 ),
-                new Text(text)
+                new W.Text(text)
             );
         }
 
@@ -750,38 +1150,37 @@ namespace WordGenerator.Api.Application.Services
 
         #region Table Cell Creation
 
-        private Docx.TableCell CreateHeaderCell(string text, bool isHeader, int widthPercentage)
+        private W.TableCell CreateHeaderCell(string text, bool isHeader, int widthPercentage)
         {
-            var cell = new Docx.TableCell();
+            var cell = new W.TableCell();
 
-            var paragraph = new Docx.Paragraph(
-                new ParagraphProperties(
-                    new Justification { Val = JustificationValues.Center },
-                    new BiDi(),
-                    new SpacingBetweenLines { After = "0" }
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.Justification { Val = W.JustificationValues.Center },
+                    new W.BiDi(),
+                    new W.SpacingBetweenLines { After = "0" }
                 )
             );
 
             paragraph.Append(CreateTableCellRun(PrepareRTLText(text), true, true));
             cell.Append(paragraph);
 
-            var cellProps = new TableCellProperties(
-                new TableCellWidth { Type = TableWidthUnitValues.Dxa, Width = (widthPercentage * 50).ToString() },
-                new TableCellVerticalAlignment { Val = TableVerticalAlignmentValues.Center },
-                new TableCellMargin(
-                    new TopMargin { Width = "100", Type = TableWidthUnitValues.Dxa },
-                    new BottomMargin { Width = "100", Type = TableWidthUnitValues.Dxa },
-                    new LeftMargin { Width = "100", Type = TableWidthUnitValues.Dxa },
-                    new RightMargin { Width = "100", Type = TableWidthUnitValues.Dxa }
+            var cellProps = new W.TableCellProperties(
+                new W.TableCellWidth { Type = W.TableWidthUnitValues.Dxa, Width = (widthPercentage * 50).ToString() },
+                new W.TableCellVerticalAlignment { Val = W.TableVerticalAlignmentValues.Center },
+                new W.TableCellMargin(
+                    new W.TopMargin { Width = "100", Type = W.TableWidthUnitValues.Dxa },
+                    new W.BottomMargin { Width = "100", Type = W.TableWidthUnitValues.Dxa },
+                    new W.LeftMargin { Width = "100", Type = W.TableWidthUnitValues.Dxa },
+                    new W.RightMargin { Width = "100", Type = W.TableWidthUnitValues.Dxa }
                 )
             );
 
-            // اضافه کردن رنگ سفید به هدرها
-            var shading = new Shading
+            var shading = new W.Shading
             {
-                Val = ShadingPatternValues.Clear,
+                Val = W.ShadingPatternValues.Clear,
                 Color = "auto",
-                Fill = "FFFFFF"  // رنگ سفید برای هدرها
+                Fill = "FFFFFF"
             };
             cellProps.Append(shading);
 
@@ -789,15 +1188,15 @@ namespace WordGenerator.Api.Application.Services
             return cell;
         }
 
-        private Docx.TableCell CreateDataCell(string text, string backgroundColor = null)
+        private W.TableCell CreateDataCell(string text, string backgroundColor = null)
         {
-            var cell = new Docx.TableCell();
+            var cell = new W.TableCell();
 
-            var paragraph = new Docx.Paragraph(
-                new ParagraphProperties(
-                    new Justification { Val = JustificationValues.Right },
-                    new BiDi(),
-                    new SpacingBetweenLines { After = "0" }
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.Justification { Val = W.JustificationValues.Right },
+                    new W.BiDi(),
+                    new W.SpacingBetweenLines { After = "0" }
                 )
             );
 
@@ -805,22 +1204,21 @@ namespace WordGenerator.Api.Application.Services
             paragraph.Append(runs);
             cell.Append(paragraph);
 
-            var cellProps = new TableCellProperties(
-                new TableCellVerticalAlignment { Val = TableVerticalAlignmentValues.Center },
-                new TableCellMargin(
-                    new TopMargin { Width = "80", Type = TableWidthUnitValues.Dxa },
-                    new BottomMargin { Width = "80", Type = TableWidthUnitValues.Dxa },
-                    new LeftMargin { Width = "100", Type = TableWidthUnitValues.Dxa },
-                    new RightMargin { Width = "100", Type = TableWidthUnitValues.Dxa }
+            var cellProps = new W.TableCellProperties(
+                new W.TableCellVerticalAlignment { Val = W.TableVerticalAlignmentValues.Center },
+                new W.TableCellMargin(
+                    new W.TopMargin { Width = "80", Type = W.TableWidthUnitValues.Dxa },
+                    new W.BottomMargin { Width = "80", Type = W.TableWidthUnitValues.Dxa },
+                    new W.LeftMargin { Width = "100", Type = W.TableWidthUnitValues.Dxa },
+                    new W.RightMargin { Width = "100", Type = W.TableWidthUnitValues.Dxa }
                 )
             );
 
-            // اضافه کردن رنگ پس‌زمینه اگر مقدار داده شده باشد
             if (!string.IsNullOrEmpty(backgroundColor))
             {
-                var shading = new Shading
+                var shading = new W.Shading
                 {
-                    Val = ShadingPatternValues.Clear,
+                    Val = W.ShadingPatternValues.Clear,
                     Color = "auto",
                     Fill = backgroundColor
                 };
@@ -830,13 +1228,14 @@ namespace WordGenerator.Api.Application.Services
             cell.Append(cellProps);
             return cell;
         }
+
         #endregion
 
         #region Run Creation Helpers
 
-        private List<Run> CreateRunsForTableCell(string text)
+        private List<W.Run> CreateRunsForTableCell(string text)
         {
-            var runs = new List<Run>();
+            var runs = new List<W.Run>();
             var current = new List<char>();
             bool? currentIsPersian = null;
 
@@ -875,40 +1274,42 @@ namespace WordGenerator.Api.Application.Services
             return runs;
         }
 
-        private Run CreateTableCellRun(string text, bool isPersian, bool isHeader)
+        private W.Run CreateTableCellRun(string text, bool isPersian, bool isHeader)
         {
-            var runProperties = new RunProperties(
-                new RunFonts
+            var runProperties = new W.RunProperties(
+                new W.RunFonts
                 {
                     Ascii = isPersian ? PersianFont : EnglishFont,
                     HighAnsi = isPersian ? PersianFont : EnglishFont,
                     ComplexScript = isPersian ? PersianFont : EnglishFont
                 },
-                new FontSize { Val = isHeader ? TableHeaderFontSize : (isPersian ? PersianFontSize : EnglishFontSize) }
+                new W.FontSize { Val = isHeader ? TableHeaderFontSize : (isPersian ? PersianFontSize : EnglishFontSize) }
             );
 
             if (isHeader)
             {
-                runProperties.Append(new Bold());
+                runProperties.Append(new W.Bold());
             }
 
-            var run = new Run(runProperties);
+            var run = new W.Run(runProperties);
 
             if (!string.IsNullOrWhiteSpace(text))
             {
-                run.Append(new Text(text) { Space = SpaceProcessingModeValues.Preserve });
+                var textElement = new W.Text(text);
+                textElement.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
+                run.Append(textElement);
             }
             else
             {
-                run.Append(new Text(" "));
+                run.Append(new W.Text(" "));
             }
 
             return run;
         }
 
-        private List<Run> CreateRunsForText(string text)
+        private List<W.Run> CreateRunsForText(string text)
         {
-            var runs = new List<Run>();
+            var runs = new List<W.Run>();
             var current = new List<char>();
             bool? currentIsPersian = null;
 
@@ -940,48 +1341,50 @@ namespace WordGenerator.Api.Application.Services
             return runs;
         }
 
-        private Run CreateRunForCover(string text, bool isPersian, bool isTitle, string fontSize)
+        private W.Run CreateRunForCover(string text, bool isPersian, bool isTitle, string fontSize)
         {
-            return new Run(
-                new RunProperties(
-                    new RunFonts
+            var run = new W.Run(
+                new W.RunProperties(
+                    new W.RunFonts
                     {
                         Ascii = isPersian ? PersianFont : EnglishFont,
                         HighAnsi = isPersian ? PersianFont : EnglishFont,
                         ComplexScript = isPersian ? PersianFont : EnglishFont
                     },
-                    new FontSize { Val = fontSize },
-                    new Bold()
-                ),
-                new Text(text)
-                {
-                    Space = SpaceProcessingModeValues.Preserve
-                }
+                    new W.FontSize { Val = fontSize },
+                    new W.Bold()
+                )
             );
+
+            var textElement = new W.Text(text);
+            textElement.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
+            run.Append(textElement);
+
+            return run;
         }
 
         #endregion
 
         #region Table of Contents
 
-        private Paragraph CreateTableOfContents()
+        private W.Paragraph CreateTableOfContents()
         {
-            var paragraph = new Paragraph();
+            var paragraph = new W.Paragraph();
 
-            var paraProps = new ParagraphProperties(
-                new ParagraphStyleId { Val = "Normal" },
-                new Justification { Val = JustificationValues.Left },
-                new BiDi(),
-                new SpacingBetweenLines { After = "120" }
+            var paraProps = new W.ParagraphProperties(
+                new W.ParagraphStyleId { Val = "Normal" },
+                new W.Justification { Val = W.JustificationValues.Left },
+                new W.BiDi(),
+                new W.SpacingBetweenLines { After = "120" }
             );
             paragraph.Append(paraProps);
 
-            var run = new Run();
-            var fieldCode = new FieldCode { Text = "TOC \\o \"1-2\" \\h \\* MERGEFORMAT" };
-            var fieldChar1 = new FieldChar { FieldCharType = FieldCharValues.Begin };
-            var fieldChar2 = new FieldChar { FieldCharType = FieldCharValues.Separate };
-            var fieldChar3 = new FieldChar { FieldCharType = FieldCharValues.End };
-            var placeholderText = new Text("【اینجا کلیک کرده و F9 بزنید】");
+            var run = new W.Run();
+            var fieldCode = new W.FieldCode { Text = "TOC \\o \"1-2\" \\h \\* MERGEFORMAT" };
+            var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
+            var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
+            var placeholderText = new W.Text("【اینجا کلیک کرده و F9 بزنید】");
 
             run.Append(fieldChar1);
             run.Append(fieldCode);
@@ -1000,90 +1403,87 @@ namespace WordGenerator.Api.Application.Services
         private void AddStylesToDocument(MainDocumentPart mainPart)
         {
             var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
-            var styles = new Docx.Styles();
+            var styles = new W.Styles();
 
-            // Normal Style
-            var normalStyle = new Docx.Style
+            var normalStyle = new W.Style
             {
-                Type = StyleValues.Paragraph,
+                Type = W.StyleValues.Paragraph,
                 StyleId = "Normal",
                 Default = true
             };
-            var normalName = new Docx.StyleName { Val = "Normal" };
+            var normalName = new W.StyleName { Val = "Normal" };
             normalStyle.Append(normalName);
-            var normalRunProps = new Docx.StyleRunProperties(
-                new RunFonts
+            var normalRunProps = new W.StyleRunProperties(
+                new W.RunFonts
                 {
                     Ascii = PersianFont,
                     HighAnsi = PersianFont,
                     ComplexScript = PersianFont
                 },
-                new FontSize { Val = "24" }
+                new W.FontSize { Val = "24" }
             );
             normalStyle.Append(normalRunProps);
             styles.Append(normalStyle);
 
-            // Heading1 Style
-            var heading1Style = new Docx.Style
+            var heading1Style = new W.Style
             {
-                Type = StyleValues.Paragraph,
+                Type = W.StyleValues.Paragraph,
                 StyleId = "Heading1",
                 Default = false,
                 CustomStyle = false
             };
 
-            var heading1Name = new Docx.StyleName { Val = "heading 1" };
+            var heading1Name = new W.StyleName { Val = "heading 1" };
             heading1Style.Append(heading1Name);
 
-            var heading1ParaProps = new Docx.StyleParagraphProperties(
-                new ParagraphStyleId { Val = "Heading1" },
-                new Justification { Val = JustificationValues.Center },
-                new SpacingBetweenLines { After = "240", Line = "240" },
-                new OutlineLevel { Val = 0 }
+            var heading1ParaProps = new W.StyleParagraphProperties(
+                new W.ParagraphStyleId { Val = "Heading1" },
+                new W.Justification { Val = W.JustificationValues.Center },
+                new W.SpacingBetweenLines { After = "240", Line = "240" },
+                new W.OutlineLevel { Val = 0 }
             );
 
-            var heading1RunProps = new Docx.StyleRunProperties(
-                new RunFonts
+            var heading1RunProps = new W.StyleRunProperties(
+                new W.RunFonts
                 {
                     Ascii = PersianFont,
                     HighAnsi = PersianFont,
                     ComplexScript = PersianFont
                 },
-                new FontSize { Val = MasterHeaderFontSize },
-                new Bold()
+                new W.FontSize { Val = MasterHeaderFontSize },
+                new W.Bold()
             );
 
             heading1Style.Append(heading1ParaProps, heading1RunProps);
             styles.Append(heading1Style);
 
-            // Heading2 Style
-            var heading2Style = new Docx.Style
+            var heading2Style = new W.Style
             {
-                Type = StyleValues.Paragraph,
+                Type = W.StyleValues.Paragraph,
                 StyleId = "Heading2",
                 Default = false,
                 CustomStyle = false
             };
 
-            var heading2Name = new Docx.StyleName { Val = "heading 2" };
+            var heading2Name = new W.StyleName { Val = "heading 2" };
             heading2Style.Append(heading2Name);
 
-            var heading2ParaProps = new Docx.StyleParagraphProperties(
-                new ParagraphStyleId { Val = "Heading2" },
-                new Justification { Val = JustificationValues.Right },
-                new SpacingBetweenLines { After = "120", Line = "240" },
-                new OutlineLevel { Val = 1 }
+            var heading2ParaProps = new W.StyleParagraphProperties(
+                new W.ParagraphStyleId { Val = "Heading2" },
+                new W.Justification { Val = W.JustificationValues.Right },
+                new W.SpacingBetweenLines { After = "120", Line = "240" },
+                new W.OutlineLevel { Val = 1 }
             );
 
-            var heading2RunProps = new Docx.StyleRunProperties(
-                new RunFonts
+            var heading2RunProps = new W.StyleRunProperties(
+                new W.RunFonts
                 {
                     Ascii = PersianFont,
                     HighAnsi = PersianFont,
                     ComplexScript = PersianFont
                 },
-                new FontSize { Val = SubHeaderFontSize },
-                new Bold()
+                new W.FontSize { Val = SubHeaderFontSize },
+                new W.Bold()
             );
 
             heading2Style.Append(heading2ParaProps, heading2RunProps);
