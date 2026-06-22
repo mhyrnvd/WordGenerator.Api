@@ -3,12 +3,7 @@
     public class CreateCoverPageDto
     {
         public string? Title { get; set; }
-
-        public List<CreateCoverPageItemDto> Items { get; set; }
-            = new();
-
-        public List<CreateDynamicTableDto> Tables { get; set; } = new();
-        public List<ImageItemDto> Images { get; set; } = new();
-        public List<ImageGroupDto> ImageGroups { get; set; } = new();
+        public List<CreateCoverPageItemDto> Items { get; set; } = new();
+        public List<ContentElementDto> Elements { get; set; } = new(); // جدید
     }
 }

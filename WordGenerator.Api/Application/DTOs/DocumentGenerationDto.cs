@@ -5,12 +5,8 @@ namespace WordGenerator.Api.Application.DTOs
     {
         public CoverPageDataDto? CoverPage { get; set; }
         public bool IncludeTableOfContents { get; set; } = true;
-
-        // بخش‌های قدیمی
-        public List<SectionDataDto> Sections { get; set; } = new();
-
-        // بخش‌های جدید سلسله‌مراتبی
         public List<MasterSectionDataDto> MasterSections { get; set; } = new();
+        public List<SectionDataDto> Sections { get; set; } = new();
     }
 
     /// <summary>
@@ -22,12 +18,8 @@ namespace WordGenerator.Api.Application.DTOs
         public string Title { get; set; } = null!;
         public int Order { get; set; }
         public bool ShowInToc { get; set; } = true;
-
+        public List<ContentElementDto> Elements { get; set; } = new(); // ← جدید
         public List<SubSectionDataDto> SubSections { get; set; } = new();
-        public List<ParagraphDataDto> Paragraphs { get; set; } = new();
-        public List<TableDataDto> Tables { get; set; } = new();
-        public List<ImageItemDto> Images { get; set; } = new();
-        public List<ImageGroupDto> ImageGroups { get; set; } = new();
     }
 
     /// <summary>
@@ -39,21 +31,15 @@ namespace WordGenerator.Api.Application.DTOs
         public string Title { get; set; } = null!;
         public int Order { get; set; }
         public bool ShowInToc { get; set; } = true;
-
-        public List<ParagraphDataDto> Paragraphs { get; set; } = new();
-        public List<TableDataDto> Tables { get; set; } = new();
-        public List<ImageItemDto> Images { get; set; } = new();
-        public List<ImageGroupDto> ImageGroups { get; set; } = new();
+        public List<ContentElementDto> Elements { get; set; } = new(); // ← جدید
     }
 
     public class CoverPageDataDto
     {
-        public long? Id { get; set; }  // optional
+        public long? Id { get; set; }
         public string? Title { get; set; }
         public List<CoverPageItemDto> Items { get; set; } = new();
-        public List<TableDataDto> Tables { get; set; } = new();
-        public List<ImageItemDto> Images { get; set; } = new();
-        public List<ImageGroupDto> ImageGroups { get; set; } = new();
+        public List<ContentElementDto> Elements { get; set; } = new(); // ← جدید
     }
 
     public class CoverPageItemDto
@@ -66,14 +52,10 @@ namespace WordGenerator.Api.Application.DTOs
 
     public class SectionDataDto
     {
-        public long? Id { get; set; }  // optional
+        public long? Id { get; set; }
         public string Title { get; set; } = null!;
         public int Order { get; set; }
-        public List<ParagraphDataDto> Paragraphs { get; set; } = new();
-        public List<TableDataDto> Tables { get; set; } = new();
-        public List<ImageItemDto> Images { get; set; } = new();
-        public List<ImageGroupDto> ImageGroups { get; set; } = new();
-
+        public List<ContentElementDto> Elements { get; set; } = new(); // ← جدید
     }
 
     public class ParagraphDataDto
@@ -105,8 +87,9 @@ namespace WordGenerator.Api.Application.DTOs
 
     public class RowDataDto
     {
-        public long? Id { get; set; }  // optional
+        public long? Id { get; set; }
         public int RowNumber { get; set; }
+        public List<string> Values { get; set; } = new();
         public List<CellDataDto> Cells { get; set; } = new();
     }
 

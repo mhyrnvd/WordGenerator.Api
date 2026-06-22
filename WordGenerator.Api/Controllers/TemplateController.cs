@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using WordGenerator.Api.Application.DTOs;
 using WordGenerator.Api.Domain.Entities;
+using WordGenerator.Api.Domain.Enums;
 using WordGenerator.Api.Infra.Context;
 
 namespace WordGenerator.Api.Controllers
@@ -39,160 +40,106 @@ namespace WordGenerator.Api.Controllers
                             Value = x.Value,
                             Order = x.Order
                         }).ToList(),
-                        ImageGroups = dto.CoverPage.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
-                        {
-                            Title = g.Title,
-                            Order = g.Order,
-                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
-                            Images = g.Images.Select(img => new ImageItem
-                            {
-                                FileName = img.FileName,
-                                Caption = img.Caption,
-                                Order = img.Order,
-                                Width = img.Width,
-                                Height = img.Height,
-                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                            }).ToList()
-                        }).ToList() ?? new List<ImageGroup>(),
-                        Tables = dto.CoverPage.Tables.Select(x => new DynamicTable
-                        {
-                            Title = x.Title,
-                            Order = x.Order,
-                            ShowRowNumbers = x.ShowRowNumbers,
-                            RowNumberHeader = x.RowNumberHeader,
-                            Columns = x.Columns.OrderBy(c => c.Order).Select(c => new TableColumnDefinition
-                            {
-                                Header = c.Header,
-                                Width = c.Width,
-                                Order = c.Order
-                            }).ToList()
-                        }).ToList()
+                        Elements = new List<ContentElement>()
                     },
-                    MasterSections = dto.MasterSections.OrderBy(x => x.Order).Select(x => new MasterSection
-                    {
-                        Title = x.Title,
-                        Order = x.Order,
-                        ShowInToc = x.ShowInToc,
-                        Paragraphs = x.Paragraphs.OrderBy(p => p.Order).Select(p => new MasterSectionParagraph
-                        {
-                            Text = p.Text,
-                            Order = p.Order
-                        }).ToList(),
-                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
-                        {
-                            Title = g.Title,
-                            Order = g.Order,
-                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
-                            Images = g.Images.Select(img => new ImageItem
-                            {
-                                FileName = img.FileName,
-                                Caption = img.Caption,
-                                Order = img.Order,
-                                Width = img.Width,
-                                Height = img.Height,
-                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                            }).ToList()
-                        }).ToList() ?? new List<ImageGroup>(),
-                        SubSections = x.SubSections.OrderBy(s => s.Order).Select(s => new SubSection
-                        {
-                            Title = s.Title,
-                            Order = s.Order,
-                            ShowInToc = s.ShowInToc,
-                            Paragraphs = s.Paragraphs.OrderBy(p => p.Order).Select(p => new SubSectionParagraph
-                            {
-                                Text = p.Text,
-                                Order = p.Order
-                            }).ToList(),
-                            ImageGroups = s.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
-                            {
-                                Title = g.Title,
-                                Order = g.Order,
-                                ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
-                                Images = g.Images.Select(img => new ImageItem
-                                {
-                                    FileName = img.FileName,
-                                    Caption = img.Caption,
-                                    Order = img.Order,
-                                    Width = img.Width,
-                                    Height = img.Height,
-                                    ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                                }).ToList()
-                            }).ToList() ?? new List<ImageGroup>(),
-                            Tables = s.Tables.Select(t => new DynamicTable
-                            {
-                                Title = t.Title,
-                                Order = t.Order,
-                                ShowRowNumbers = t.ShowRowNumbers,
-                                RowNumberHeader = t.RowNumberHeader,
-                                Columns = t.Columns.OrderBy(c => c.Order).Select(c => new TableColumnDefinition
-                                {
-                                    Header = c.Header,
-                                    Width = c.Width,
-                                    Order = c.Order
-                                }).ToList()
-                            }).ToList()
-                        }).ToList(),
-                        Tables = x.Tables.Select(t => new DynamicTable
-                        {
-                            Title = t.Title,
-                            Order = t.Order,
-                            ShowRowNumbers = t.ShowRowNumbers,
-                            RowNumberHeader = t.RowNumberHeader,
-                            Columns = t.Columns.OrderBy(c => c.Order).Select(c => new TableColumnDefinition
-                            {
-                                Header = c.Header,
-                                Width = c.Width,
-                                Order = c.Order
-                            }).ToList()
-                        }).ToList()
-                    }).ToList(),
-                    Sections = dto.Sections.OrderBy(x => x.Order).Select(x => new TemplateSection
-                    {
-                        Title = x.Title,
-                        Order = x.Order,
-                        Paragraphs = x.Paragraphs.OrderBy(p => p.Order).Select(p => new SectionParagraph
-                        {
-                            Text = p.Text,
-                            Order = p.Order
-                        }).ToList(),
-                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
-                        {
-                            Title = g.Title,
-                            Order = g.Order,
-                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
-                            Images = g.Images.Select(img => new ImageItem
-                            {
-                                FileName = img.FileName,
-                                Caption = img.Caption,
-                                Order = img.Order,
-                                Width = img.Width,
-                                Height = img.Height,
-                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                            }).ToList()
-                        }).ToList() ?? new List<ImageGroup>(),
-                        Tables = x.Tables.Select(t => new DynamicTable
-                        {
-                            Title = t.Title,
-                            Order = t.Order,
-                            ShowRowNumbers = t.ShowRowNumbers,
-                            RowNumberHeader = t.RowNumberHeader,
-                            Columns = t.Columns.OrderBy(c => c.Order).Select(c => new TableColumnDefinition
-                            {
-                                Header = c.Header,
-                                Width = c.Width,
-                                Order = c.Order
-                            }).ToList()
-                        }).ToList()
-                    }).ToList()
+                    MasterSections = new List<MasterSection>(),
+                    Sections = new List<TemplateSection>()
                 };
 
                 _context.DocumentTemplates.Add(template);
                 await _context.SaveChangesAsync();
 
-                await AddAllTableRowsAndCells(dto, template);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                // ========== Cover Page Elements ==========
+                if (dto.CoverPage != null && template.CoverPage != null)
+                {
+                    template.CoverPage.Elements = await MapContentElements(
+                        dto.CoverPage.Elements,
+                        null,
+                        null,
+                        null,
+                        template.CoverPage.Id
+                    );
+                    await _context.SaveChangesAsync();
+                }
 
+                // ========== Master Sections ==========
+                foreach (var masterDto in dto.MasterSections.OrderBy(x => x.Order))
+                {
+                    var master = new MasterSection
+                    {
+                        Title = masterDto.Title,
+                        Order = masterDto.Order,
+                        ShowInToc = masterDto.ShowInToc,
+                        TemplateId = template.Id,
+                        SubSections = new List<SubSection>(),
+                        Elements = new List<ContentElement>()
+                    };
+
+                    _context.MasterSections.Add(master);
+                    await _context.SaveChangesAsync();
+
+                    // Elements Master
+                    master.Elements = await MapContentElements(
+                        masterDto.Elements,
+                        master.Id,
+                        null,
+                        null,
+                        null
+                    );
+                    await _context.SaveChangesAsync();
+
+                    // ========== Sub Sections ==========
+                    foreach (var subDto in masterDto.SubSections.OrderBy(x => x.Order))
+                    {
+                        var sub = new SubSection
+                        {
+                            Title = subDto.Title,
+                            Order = subDto.Order,
+                            ShowInToc = subDto.ShowInToc,
+                            MasterSectionId = master.Id,
+                            Elements = new List<ContentElement>()
+                        };
+
+                        _context.SubSections.Add(sub);
+                        await _context.SaveChangesAsync();
+
+                        // Elements Sub
+                        sub.Elements = await MapContentElements(
+                            subDto.Elements,
+                            null,
+                            sub.Id,
+                            null,
+                            null
+                        );
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                // ========== Legacy Sections ==========
+                foreach (var sectionDto in dto.Sections.OrderBy(x => x.Order))
+                {
+                    var section = new TemplateSection
+                    {
+                        Title = sectionDto.Title,
+                        Order = sectionDto.Order,
+                        TemplateId = template.Id,
+                        Elements = new List<ContentElement>()
+                    };
+
+                    _context.TemplateSections.Add(section);
+                    await _context.SaveChangesAsync();
+
+                    section.Elements = await MapContentElements(
+                        sectionDto.Elements,
+                        null,
+                        null,
+                        section.Id,
+                        null
+                    );
+                    await _context.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync();
                 return Ok(new { Id = template.Id });
             }
             catch (Exception ex)
@@ -200,103 +147,6 @@ namespace WordGenerator.Api.Controllers
                 await transaction.RollbackAsync();
                 throw;
             }
-        }
-
-        private async Task AddAllTableRowsAndCells(CreateDocumentTemplateDto dto, DocumentTemplate template)
-        {
-            // Cover Page Tables
-            if (dto.CoverPage != null && template.CoverPage != null)
-            {
-                var coverPageTables = template.CoverPage.Tables.ToList();
-                for (int i = 0; i < dto.CoverPage.Tables.Count && i < coverPageTables.Count; i++)
-                {
-                    var tableDto = dto.CoverPage.Tables[i];
-                    var table = coverPageTables[i];
-                    await AddRowsToTable(tableDto, table);
-                }
-            }
-
-            // MasterSections Tables
-            var masterSectionsList = template.MasterSections.ToList();
-            for (int m = 0; m < dto.MasterSections.Count && m < masterSectionsList.Count; m++)
-            {
-                var masterDto = dto.MasterSections[m];
-                var master = masterSectionsList[m];
-
-                var masterTables = master.Tables.ToList();
-                for (int t = 0; t < masterDto.Tables.Count && t < masterTables.Count; t++)
-                {
-                    var tableDto = masterDto.Tables[t];
-                    var table = masterTables[t];
-                    await AddRowsToTable(tableDto, table);
-                }
-
-                var subSectionsList = master.SubSections.ToList();
-                for (int s = 0; s < masterDto.SubSections.Count && s < subSectionsList.Count; s++)
-                {
-                    var subDto = masterDto.SubSections[s];
-                    var sub = subSectionsList[s];
-
-                    var subTables = sub.Tables.ToList();
-                    for (int t = 0; t < subDto.Tables.Count && t < subTables.Count; t++)
-                    {
-                        var tableDto = subDto.Tables[t];
-                        var table = subTables[t];
-                        await AddRowsToTable(tableDto, table);
-                    }
-                }
-            }
-
-            // Sections Tables
-            var sectionsList = template.Sections.ToList();
-            for (int s = 0; s < dto.Sections.Count && s < sectionsList.Count; s++)
-            {
-                var sectionDto = dto.Sections[s];
-                var section = sectionsList[s];
-
-                var sectionTables = section.Tables.ToList();
-                for (int t = 0; t < sectionDto.Tables.Count && t < sectionTables.Count; t++)
-                {
-                    var tableDto = sectionDto.Tables[t];
-                    var table = sectionTables[t];
-                    await AddRowsToTable(tableDto, table);
-                }
-            }
-        }
-
-        private async Task AddRowsToTable(CreateDynamicTableDto tableDto, DynamicTable table)
-        {
-            if (tableDto == null || table == null) return;
-
-            var columns = table.Columns?.OrderBy(c => c.Order).ToList() ?? new List<TableColumnDefinition>();
-
-            if (columns.Count == 0) return;
-
-            foreach (var rowDto in tableDto.Rows?.OrderBy(x => x.RowNumber) ?? Enumerable.Empty<CreateTableRowDto>())
-            {
-                var row = new TableDataRow
-                {
-                    RowNumber = rowDto.RowNumber,
-                    DynamicTableId = table.Id,
-                    Cells = new List<TableDataCell>()
-                };
-
-                for (int i = 0; i < columns.Count && i < (rowDto.Values?.Count ?? 0); i++)
-                {
-                    if (columns[i] != null)
-                    {
-                        row.Cells.Add(new TableDataCell
-                        {
-                            TableColumnDefinitionId = columns[i].Id,
-                            Value = rowDto.Values[i] ?? ""
-                        });
-                    }
-                }
-
-                _context.TableRows.Add(row);
-            }
-
-            await _context.SaveChangesAsync();
         }
 
         // =========================
@@ -330,59 +180,60 @@ namespace WordGenerator.Api.Controllers
                 .Include(x => x.CoverPage)
                     .ThenInclude(x => x.Items)
                 .Include(x => x.CoverPage)
-                    .ThenInclude(x => x.ImageGroups)
-                        .ThenInclude(g => g.Images)
+                    .ThenInclude(x => x.Elements)
+                        .ThenInclude(e => e.Image)
                 .Include(x => x.CoverPage)
-                    .ThenInclude(x => x.Tables)
-                        .ThenInclude(t => t.Columns)
-                .Include(x => x.CoverPage)
-                    .ThenInclude(x => x.Tables)
-                        .ThenInclude(t => t.Rows)
-                            .ThenInclude(r => r.Cells)
-                                .ThenInclude(c => c.Column)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.Paragraphs)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.ImageGroups)
-                        .ThenInclude(g => g.Images)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.SubSections)
-                        .ThenInclude(s => s.Paragraphs)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.SubSections)
-                        .ThenInclude(s => s.ImageGroups)
-                            .ThenInclude(g => g.Images)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.SubSections)
-                        .ThenInclude(s => s.Tables)
+                    .ThenInclude(x => x.Elements)
+                        .ThenInclude(e => e.Table)
                             .ThenInclude(t => t.Columns)
-                .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.SubSections)
-                        .ThenInclude(s => s.Tables)
+                .Include(x => x.CoverPage)
+                    .ThenInclude(x => x.Elements)
+                        .ThenInclude(e => e.Table)
                             .ThenInclude(t => t.Rows)
                                 .ThenInclude(r => r.Cells)
                                     .ThenInclude(c => c.Column)
                 .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.Tables)
-                        .ThenInclude(t => t.Columns)
+                    .ThenInclude(m => m.Elements)
+                        .ThenInclude(e => e.Image)
                 .Include(x => x.MasterSections)
-                    .ThenInclude(m => m.Tables)
-                        .ThenInclude(t => t.Rows)
-                            .ThenInclude(r => r.Cells)
-                                .ThenInclude(c => c.Column)
+                    .ThenInclude(m => m.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.SubSections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Image)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.SubSections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Columns)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.SubSections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Rows)
+                                    .ThenInclude(r => r.Cells)
+                                        .ThenInclude(c => c.Column)
                 .Include(x => x.Sections)
-                    .ThenInclude(s => s.Paragraphs)
+                    .ThenInclude(s => s.Elements)
+                        .ThenInclude(e => e.Image)
                 .Include(x => x.Sections)
-                    .ThenInclude(s => s.ImageGroups)
-                        .ThenInclude(g => g.Images)
+                    .ThenInclude(s => s.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
                 .Include(x => x.Sections)
-                    .ThenInclude(s => s.Tables)
-                        .ThenInclude(t => t.Columns)
-                .Include(x => x.Sections)
-                    .ThenInclude(s => s.Tables)
-                        .ThenInclude(t => t.Rows)
-                            .ThenInclude(r => r.Cells)
-                                .ThenInclude(c => c.Column)
+                    .ThenInclude(s => s.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (template == null)
@@ -404,53 +255,7 @@ namespace WordGenerator.Api.Controllers
                         x.Value,
                         x.Order
                     }),
-                    ImageGroups = template.CoverPage.ImageGroups.OrderBy(g => g.Order).Select(g => new
-                    {
-                        g.Id,
-                        g.Title,
-                        g.Order,
-                        g.ImagesPerRow,
-                        Images = g.Images.OrderBy(i => i.Order).Select(i => new
-                        {
-                            i.Id,
-                            i.FileName,
-                            i.Caption,
-                            i.Order,
-                            i.Width,
-                            i.Height,
-                            ImageBase64 = Convert.ToBase64String(i.ImageData)
-                        })
-                    }),
-                    Tables = template.CoverPage.Tables.OrderBy(x => x.Order).Select(x => new
-                    {
-                        x.Id,
-                        x.Title,
-                        x.Order,
-                        x.ShowRowNumbers,
-                        x.RowNumberHeader,
-                        Columns = x.Columns.OrderBy(c => c.Order).Select(c => new
-                        {
-                            c.Id,
-                            c.Header,
-                            c.Width,
-                            c.Order,
-                            c.IsRowNumberColumn
-                        }),
-                        Rows = x.Rows.OrderBy(r => r.RowNumber).Select(r => new
-                        {
-                            r.Id,
-                            r.RowNumber,
-                            Cells = r.Cells
-                                .Where(c => c.Column != null)
-                                .OrderBy(c => c.Column.Order)
-                                .Select(c => new
-                                {
-                                    c.Id,
-                                    ColumnId = c.TableColumnDefinitionId,
-                                    c.Value
-                                })
-                        })
-                    })
+                    Elements = template.CoverPage.Elements.OrderBy(e => e.Order).Select(e => MapContentElementToDto(e))
                 },
 
                 MasterSections = template.MasterSections.OrderBy(x => x.Order).Select((x, index) => new
@@ -460,29 +265,7 @@ namespace WordGenerator.Api.Controllers
                     x.Order,
                     x.ShowInToc,
                     SectionNumber = (index + 1).ToString(),
-                    Paragraphs = x.Paragraphs.OrderBy(p => p.Order).Select(p => new
-                    {
-                        p.Id,
-                        p.Text,
-                        p.Order
-                    }),
-                    ImageGroups = x.ImageGroups.OrderBy(g => g.Order).Select(g => new
-                    {
-                        g.Id,
-                        g.Title,
-                        g.Order,
-                        g.ImagesPerRow,
-                        Images = g.Images.OrderBy(i => i.Order).Select(i => new
-                        {
-                            i.Id,
-                            i.FileName,
-                            i.Caption,
-                            i.Order,
-                            i.Width,
-                            i.Height,
-                            ImageBase64 = Convert.ToBase64String(i.ImageData)
-                        })
-                    }),
+                    Elements = x.Elements.OrderBy(e => e.Order).Select(e => MapContentElementToDto(e)),
                     SubSections = x.SubSections.OrderBy(s => s.Order).Select((s, subIndex) => new
                     {
                         s.Id,
@@ -490,89 +273,7 @@ namespace WordGenerator.Api.Controllers
                         s.Order,
                         s.ShowInToc,
                         SectionNumber = $"{index + 1}-{subIndex + 1}",
-                        Paragraphs = s.Paragraphs.OrderBy(p => p.Order).Select(p => new
-                        {
-                            p.Id,
-                            p.Text,
-                            p.Order
-                        }),
-                        ImageGroups = s.ImageGroups.OrderBy(g => g.Order).Select(g => new
-                        {
-                            g.Id,
-                            g.Title,
-                            g.Order,
-                            g.ImagesPerRow,
-                            Images = g.Images.OrderBy(i => i.Order).Select(i => new
-                            {
-                                i.Id,
-                                i.FileName,
-                                i.Caption,
-                                i.Order,
-                                i.Width,
-                                i.Height,
-                                ImageBase64 = Convert.ToBase64String(i.ImageData)
-                            })
-                        }),
-                        Tables = s.Tables.OrderBy(t => t.Order).Select(t => new
-                        {
-                            t.Id,
-                            t.Title,
-                            t.Order,
-                            t.ShowRowNumbers,
-                            t.RowNumberHeader,
-                            Columns = t.Columns.OrderBy(c => c.Order).Select(c => new
-                            {
-                                c.Id,
-                                c.Header,
-                                c.Width,
-                                c.Order,
-                                c.IsRowNumberColumn
-                            }),
-                            Rows = t.Rows.OrderBy(r => r.RowNumber).Select(r => new
-                            {
-                                r.Id,
-                                r.RowNumber,
-                                Cells = r.Cells
-                                    .Where(c => c.Column != null)
-                                    .OrderBy(c => c.Column.Order)
-                                    .Select(c => new
-                                    {
-                                        c.Id,
-                                        ColumnId = c.TableColumnDefinitionId,
-                                        c.Value
-                                    })
-                            })
-                        })
-                    }),
-                    Tables = x.Tables.OrderBy(t => t.Order).Select(t => new
-                    {
-                        t.Id,
-                        t.Title,
-                        t.Order,
-                        t.ShowRowNumbers,
-                        t.RowNumberHeader,
-                        Columns = t.Columns.OrderBy(c => c.Order).Select(c => new
-                        {
-                            c.Id,
-                            c.Header,
-                            c.Width,
-                            c.Order,
-                            c.IsRowNumberColumn
-                        }),
-                        Rows = t.Rows.OrderBy(r => r.RowNumber).Select(r => new
-                        {
-                            r.Id,
-                            r.RowNumber,
-                            Cells = r.Cells
-                                .Where(c => c.Column != null)
-                                .OrderBy(c => c.Column.Order)
-                                .Select(c => new
-                                {
-                                    c.Id,
-                                    ColumnId = c.TableColumnDefinitionId,
-                                    c.Value
-                                })
-                        })
+                        Elements = s.Elements.OrderBy(e => e.Order).Select(e => MapContentElementToDto(e))
                     })
                 }),
 
@@ -581,59 +282,7 @@ namespace WordGenerator.Api.Controllers
                     x.Id,
                     x.Title,
                     x.Order,
-                    Paragraphs = x.Paragraphs.OrderBy(p => p.Order).Select(p => new
-                    {
-                        p.Id,
-                        p.Text,
-                        p.Order
-                    }),
-                    ImageGroups = x.ImageGroups.OrderBy(g => g.Order).Select(g => new
-                    {
-                        g.Id,
-                        g.Title,
-                        g.Order,
-                        g.ImagesPerRow,
-                        Images = g.Images.OrderBy(i => i.Order).Select(i => new
-                        {
-                            i.Id,
-                            i.FileName,
-                            i.Caption,
-                            i.Order,
-                            i.Width,
-                            i.Height,
-                            ImageBase64 = Convert.ToBase64String(i.ImageData)
-                        })
-                    }),
-                    Tables = x.Tables.OrderBy(t => t.Order).Select(t => new
-                    {
-                        t.Id,
-                        t.Title,
-                        t.Order,
-                        t.ShowRowNumbers,
-                        t.RowNumberHeader,
-                        Columns = t.Columns.OrderBy(c => c.Order).Select(c => new
-                        {
-                            c.Id,
-                            c.Header,
-                            c.Width,
-                            c.Order,
-                            c.IsRowNumberColumn
-                        }),
-                        Rows = t.Rows.OrderBy(r => r.RowNumber).Select(r => new
-                        {
-                            r.Id,
-                            r.RowNumber,
-                            Cells = r.Cells
-                                .Where(c => c.Column != null)
-                                .OrderBy(c => c.Column.Order)
-                                .Select(c => new
-                                {
-                                    c.Id,
-                                    ColumnId = c.TableColumnDefinitionId,
-                                    c.Value
-                                })
-                        })
-                    })
+                    Elements = x.Elements.OrderBy(e => e.Order).Select(e => MapContentElementToDto(e))
                 })
             });
         }
@@ -666,236 +315,304 @@ namespace WordGenerator.Api.Controllers
 
             try
             {
+                // پیدا کردن تمپلیت موجود
                 var existingTemplate = await _context.DocumentTemplates
                     .Include(x => x.CoverPage)
                         .ThenInclude(x => x.Items)
                     .Include(x => x.CoverPage)
-                        .ThenInclude(x => x.ImageGroups)
-                            .ThenInclude(g => g.Images)
+                        .ThenInclude(x => x.Elements)
+                            .ThenInclude(e => e.Image)
                     .Include(x => x.CoverPage)
-                        .ThenInclude(x => x.Tables)
-                            .ThenInclude(t => t.Columns)
-                    .Include(x => x.CoverPage)
-                        .ThenInclude(x => x.Tables)
-                            .ThenInclude(t => t.Rows)
-                                .ThenInclude(r => r.Cells)
-                    .Include(x => x.MasterSections)
-                        .ThenInclude(m => m.Paragraphs)
-                    .Include(x => x.MasterSections)
-                        .ThenInclude(m => m.ImageGroups)
-                            .ThenInclude(g => g.Images)
-                    .Include(x => x.MasterSections)
-                        .ThenInclude(m => m.SubSections)
-                            .ThenInclude(s => s.Paragraphs)
-                    .Include(x => x.MasterSections)
-                        .ThenInclude(m => m.SubSections)
-                            .ThenInclude(s => s.ImageGroups)
-                                .ThenInclude(g => g.Images)
-                    .Include(x => x.MasterSections)
-                        .ThenInclude(m => m.SubSections)
-                            .ThenInclude(s => s.Tables)
+                        .ThenInclude(x => x.Elements)
+                            .ThenInclude(e => e.Table)
                                 .ThenInclude(t => t.Columns)
-                    .Include(x => x.MasterSections)
-                        .ThenInclude(m => m.SubSections)
-                            .ThenInclude(s => s.Tables)
+                    .Include(x => x.CoverPage)
+                        .ThenInclude(x => x.Elements)
+                            .ThenInclude(e => e.Table)
                                 .ThenInclude(t => t.Rows)
                                     .ThenInclude(r => r.Cells)
                     .Include(x => x.MasterSections)
-                        .ThenInclude(m => m.Tables)
-                            .ThenInclude(t => t.Columns)
+                        .ThenInclude(m => m.Elements)
+                            .ThenInclude(e => e.Image)
                     .Include(x => x.MasterSections)
-                        .ThenInclude(m => m.Tables)
-                            .ThenInclude(t => t.Rows)
-                                .ThenInclude(r => r.Cells)
+                        .ThenInclude(m => m.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Columns)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Rows)
+                                    .ThenInclude(r => r.Cells)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.SubSections)
+                            .ThenInclude(s => s.Elements)
+                                .ThenInclude(e => e.Image)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.SubSections)
+                            .ThenInclude(s => s.Elements)
+                                .ThenInclude(e => e.Table)
+                                    .ThenInclude(t => t.Columns)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.SubSections)
+                            .ThenInclude(s => s.Elements)
+                                .ThenInclude(e => e.Table)
+                                    .ThenInclude(t => t.Rows)
+                                        .ThenInclude(r => r.Cells)
                     .Include(x => x.Sections)
-                        .ThenInclude(s => s.Paragraphs)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Image)
                     .Include(x => x.Sections)
-                        .ThenInclude(s => s.ImageGroups)
-                            .ThenInclude(g => g.Images)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Columns)
                     .Include(x => x.Sections)
-                        .ThenInclude(s => s.Tables)
-                            .ThenInclude(t => t.Columns)
-                    .Include(x => x.Sections)
-                        .ThenInclude(s => s.Tables)
-                            .ThenInclude(t => t.Rows)
-                                .ThenInclude(r => r.Cells)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Rows)
+                                    .ThenInclude(r => r.Cells)
                     .FirstOrDefaultAsync(x => x.Id == id);
 
                 if (existingTemplate == null)
                     return NotFound();
 
-                // ========== 1. Delete Cells ==========
+                // ========== 1. حذف سلول‌های جداول ==========
+                var allCells = existingTemplate.MasterSections
+                    .SelectMany(m => m.Elements)
+                    .Where(e => e.Table != null)
+                    .SelectMany(e => e.Table.Rows)
+                    .SelectMany(r => r.Cells)
+                    .ToList();
+
+                allCells.AddRange(existingTemplate.Sections
+                    .SelectMany(s => s.Elements)
+                    .Where(e => e.Table != null)
+                    .SelectMany(e => e.Table.Rows)
+                    .SelectMany(r => r.Cells));
+
                 if (existingTemplate.CoverPage != null)
                 {
-                    foreach (var table in existingTemplate.CoverPage.Tables)
-                        foreach (var row in table.Rows)
-                            if (row.Cells.Any()) _context.TableCells.RemoveRange(row.Cells);
+                    allCells.AddRange(existingTemplate.CoverPage.Elements
+                        .Where(e => e.Table != null)
+                        .SelectMany(e => e.Table.Rows)
+                        .SelectMany(r => r.Cells));
                 }
 
                 foreach (var master in existingTemplate.MasterSections)
                 {
-                    foreach (var table in master.Tables)
-                        foreach (var row in table.Rows)
-                            if (row.Cells.Any()) _context.TableCells.RemoveRange(row.Cells);
-
                     foreach (var sub in master.SubSections)
-                        foreach (var table in sub.Tables)
-                            foreach (var row in table.Rows)
-                                if (row.Cells.Any()) _context.TableCells.RemoveRange(row.Cells);
+                    {
+                        allCells.AddRange(sub.Elements
+                            .Where(e => e.Table != null)
+                            .SelectMany(e => e.Table.Rows)
+                            .SelectMany(r => r.Cells));
+                    }
                 }
 
-                foreach (var section in existingTemplate.Sections)
-                {
-                    foreach (var table in section.Tables)
-                        foreach (var row in table.Rows)
-                            if (row.Cells.Any()) _context.TableCells.RemoveRange(row.Cells);
-                }
+                if (allCells.Any())
+                    _context.TableCells.RemoveRange(allCells);
+
                 await _context.SaveChangesAsync();
 
-                // ========== 2. Delete Rows ==========
+                // ========== 2. حذف ردیف‌های جداول ==========
+                var allRows = existingTemplate.MasterSections
+                    .SelectMany(m => m.Elements)
+                    .Where(e => e.Table != null)
+                    .SelectMany(e => e.Table.Rows)
+                    .ToList();
+
+                allRows.AddRange(existingTemplate.Sections
+                    .SelectMany(s => s.Elements)
+                    .Where(e => e.Table != null)
+                    .SelectMany(e => e.Table.Rows));
+
                 if (existingTemplate.CoverPage != null)
-                    foreach (var table in existingTemplate.CoverPage.Tables)
-                        if (table.Rows.Any()) _context.TableRows.RemoveRange(table.Rows);
+                {
+                    allRows.AddRange(existingTemplate.CoverPage.Elements
+                        .Where(e => e.Table != null)
+                        .SelectMany(e => e.Table.Rows));
+                }
 
                 foreach (var master in existingTemplate.MasterSections)
                 {
-                    foreach (var table in master.Tables)
-                        if (table.Rows.Any()) _context.TableRows.RemoveRange(table.Rows);
                     foreach (var sub in master.SubSections)
-                        foreach (var table in sub.Tables)
-                            if (table.Rows.Any()) _context.TableRows.RemoveRange(table.Rows);
+                    {
+                        allRows.AddRange(sub.Elements
+                            .Where(e => e.Table != null)
+                            .SelectMany(e => e.Table.Rows));
+                    }
                 }
 
-                foreach (var section in existingTemplate.Sections)
-                    foreach (var table in section.Tables)
-                        if (table.Rows.Any()) _context.TableRows.RemoveRange(table.Rows);
+                if (allRows.Any())
+                    _context.TableRows.RemoveRange(allRows);
+
                 await _context.SaveChangesAsync();
 
-                // ========== 3. Delete Columns ==========
+                // ========== 3. حذف ستون‌های جداول ==========
+                var allColumns = existingTemplate.MasterSections
+                    .SelectMany(m => m.Elements)
+                    .Where(e => e.Table != null)
+                    .SelectMany(e => e.Table.Columns)
+                    .ToList();
+
+                allColumns.AddRange(existingTemplate.Sections
+                    .SelectMany(s => s.Elements)
+                    .Where(e => e.Table != null)
+                    .SelectMany(e => e.Table.Columns));
+
                 if (existingTemplate.CoverPage != null)
-                    foreach (var table in existingTemplate.CoverPage.Tables)
-                        if (table.Columns.Any()) _context.TableColumns.RemoveRange(table.Columns);
-
-                foreach (var master in existingTemplate.MasterSections)
                 {
-                    foreach (var table in master.Tables)
-                        if (table.Columns.Any()) _context.TableColumns.RemoveRange(table.Columns);
-                    foreach (var sub in master.SubSections)
-                        foreach (var table in sub.Tables)
-                            if (table.Columns.Any()) _context.TableColumns.RemoveRange(table.Columns);
-                }
-
-                foreach (var section in existingTemplate.Sections)
-                    foreach (var table in section.Tables)
-                        if (table.Columns.Any()) _context.TableColumns.RemoveRange(table.Columns);
-                await _context.SaveChangesAsync();
-
-                // ========== 4. Delete Tables ==========
-                if (existingTemplate.CoverPage != null && existingTemplate.CoverPage.Tables.Any())
-                    _context.DynamicTables.RemoveRange(existingTemplate.CoverPage.Tables);
-
-                foreach (var master in existingTemplate.MasterSections)
-                {
-                    if (master.Tables.Any()) _context.DynamicTables.RemoveRange(master.Tables);
-                    foreach (var sub in master.SubSections)
-                        if (sub.Tables.Any()) _context.DynamicTables.RemoveRange(sub.Tables);
-                }
-
-                foreach (var section in existingTemplate.Sections)
-                    if (section.Tables.Any()) _context.DynamicTables.RemoveRange(section.Tables);
-                await _context.SaveChangesAsync();
-
-                // ========== 5. Delete Paragraphs ==========
-                foreach (var master in existingTemplate.MasterSections)
-                {
-                    if (master.Paragraphs.Any()) _context.MasterSectionParagraphs.RemoveRange(master.Paragraphs);
-                    foreach (var sub in master.SubSections)
-                        if (sub.Paragraphs.Any()) _context.SubSectionParagraphs.RemoveRange(sub.Paragraphs);
-                }
-
-                foreach (var section in existingTemplate.Sections)
-                    if (section.Paragraphs.Any()) _context.SectionParagraphs.RemoveRange(section.Paragraphs);
-                await _context.SaveChangesAsync();
-
-                // ========== 6. Delete ImageGroups and Images ==========
-                if (existingTemplate.CoverPage != null && existingTemplate.CoverPage.ImageGroups.Any())
-                {
-                    foreach (var group in existingTemplate.CoverPage.ImageGroups)
-                    {
-                        if (group.Images.Any())
-                            _context.Images.RemoveRange(group.Images);
-                    }
-                    _context.ImageGroups.RemoveRange(existingTemplate.CoverPage.ImageGroups);
+                    allColumns.AddRange(existingTemplate.CoverPage.Elements
+                        .Where(e => e.Table != null)
+                        .SelectMany(e => e.Table.Columns));
                 }
 
                 foreach (var master in existingTemplate.MasterSections)
                 {
-                    if (master.ImageGroups.Any())
-                    {
-                        foreach (var group in master.ImageGroups)
-                        {
-                            if (group.Images.Any())
-                                _context.Images.RemoveRange(group.Images);
-                        }
-                        _context.ImageGroups.RemoveRange(master.ImageGroups);
-                    }
                     foreach (var sub in master.SubSections)
                     {
-                        if (sub.ImageGroups.Any())
-                        {
-                            foreach (var group in sub.ImageGroups)
-                            {
-                                if (group.Images.Any())
-                                    _context.Images.RemoveRange(group.Images);
-                            }
-                            _context.ImageGroups.RemoveRange(sub.ImageGroups);
-                        }
+                        allColumns.AddRange(sub.Elements
+                            .Where(e => e.Table != null)
+                            .SelectMany(e => e.Table.Columns));
                     }
                 }
 
-                foreach (var section in existingTemplate.Sections)
+                if (allColumns.Any())
+                    _context.TableColumns.RemoveRange(allColumns);
+
+                await _context.SaveChangesAsync();
+
+                // ========== 4. حذف جداول ==========
+                var allTables = existingTemplate.MasterSections
+                    .SelectMany(m => m.Elements)
+                    .Where(e => e.Table != null)
+                    .Select(e => e.Table)
+                    .ToList();
+
+                allTables.AddRange(existingTemplate.Sections
+                    .SelectMany(s => s.Elements)
+                    .Where(e => e.Table != null)
+                    .Select(e => e.Table));
+
+                if (existingTemplate.CoverPage != null)
                 {
-                    if (section.ImageGroups.Any())
+                    allTables.AddRange(existingTemplate.CoverPage.Elements
+                        .Where(e => e.Table != null)
+                        .Select(e => e.Table));
+                }
+
+                foreach (var master in existingTemplate.MasterSections)
+                {
+                    foreach (var sub in master.SubSections)
                     {
-                        foreach (var group in section.ImageGroups)
-                        {
-                            if (group.Images.Any())
-                                _context.Images.RemoveRange(group.Images);
-                        }
-                        _context.ImageGroups.RemoveRange(section.ImageGroups);
+                        allTables.AddRange(sub.Elements
+                            .Where(e => e.Table != null)
+                            .Select(e => e.Table));
                     }
                 }
+
+                if (allTables.Any())
+                    _context.DynamicTables.RemoveRange(allTables);
+
                 await _context.SaveChangesAsync();
 
-                // ========== 7. Delete SubSections ==========
+                // ========== 5. حذف تمام Elementها ==========
+                var allElements = existingTemplate.MasterSections
+                    .SelectMany(m => m.Elements)
+                    .ToList();
+
+                allElements.AddRange(existingTemplate.Sections
+                    .SelectMany(s => s.Elements));
+
+                if (existingTemplate.CoverPage != null)
+                {
+                    allElements.AddRange(existingTemplate.CoverPage.Elements);
+                }
+
                 foreach (var master in existingTemplate.MasterSections)
-                    if (master.SubSections.Any()) _context.SubSections.RemoveRange(master.SubSections);
+                {
+                    foreach (var sub in master.SubSections)
+                    {
+                        allElements.AddRange(sub.Elements);
+                    }
+                }
+
+                if (allElements.Any())
+                    _context.ContentElements.RemoveRange(allElements);
+
                 await _context.SaveChangesAsync();
 
-                // ========== 8. Delete MasterSections ==========
+                // ========== 6. حذف تصاویر (Images) ==========
+                var allImages = existingTemplate.MasterSections
+                    .SelectMany(m => m.Elements)
+                    .Where(e => e.Image != null)
+                    .Select(e => e.Image)
+                    .ToList();
+
+                allImages.AddRange(existingTemplate.Sections
+                    .SelectMany(s => s.Elements)
+                    .Where(e => e.Image != null)
+                    .Select(e => e.Image));
+
+                if (existingTemplate.CoverPage != null)
+                {
+                    allImages.AddRange(existingTemplate.CoverPage.Elements
+                        .Where(e => e.Image != null)
+                        .Select(e => e.Image));
+                }
+
+                foreach (var master in existingTemplate.MasterSections)
+                {
+                    foreach (var sub in master.SubSections)
+                    {
+                        allImages.AddRange(sub.Elements
+                            .Where(e => e.Image != null)
+                            .Select(e => e.Image));
+                    }
+                }
+
+                if (allImages.Any())
+                    _context.Images.RemoveRange(allImages);
+
+                await _context.SaveChangesAsync();
+
+                // ========== 7. حذف زیربخش‌ها ==========
+                foreach (var master in existingTemplate.MasterSections)
+                {
+                    if (master.SubSections.Any())
+                        _context.SubSections.RemoveRange(master.SubSections);
+                }
+
+                await _context.SaveChangesAsync();
+
+                // ========== 8. حذف بخش‌های اصلی ==========
                 if (existingTemplate.MasterSections.Any())
                     _context.MasterSections.RemoveRange(existingTemplate.MasterSections);
+
                 await _context.SaveChangesAsync();
 
-                // ========== 9. Delete Sections ==========
+                // ========== 9. حذف بخش‌های قدیمی ==========
                 if (existingTemplate.Sections.Any())
                     _context.TemplateSections.RemoveRange(existingTemplate.Sections);
+
                 await _context.SaveChangesAsync();
 
-                // ========== 10. Delete CoverPage Items & CoverPage ==========
+                // ========== 10. حذف آیتم‌های کاورپیج ==========
+                if (existingTemplate.CoverPage != null && existingTemplate.CoverPage.Items.Any())
+                    _context.CoverPageItems.RemoveRange(existingTemplate.CoverPage.Items);
+
+                await _context.SaveChangesAsync();
+
+                // ========== 11. حذف کاورپیج ==========
                 if (existingTemplate.CoverPage != null)
-                {
-                    if (existingTemplate.CoverPage.Items.Any())
-                        _context.CoverPageItems.RemoveRange(existingTemplate.CoverPage.Items);
                     _context.CoverPageTemplates.Remove(existingTemplate.CoverPage);
-                }
+
                 await _context.SaveChangesAsync();
 
-                // ========== 11. Delete Template ==========
+                // ========== 12. حذف خود تمپلیت ==========
                 _context.DocumentTemplates.Remove(existingTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 12. Create New Template ==========
+                // ========== 13. ایجاد تمپلیت جدید ==========
                 var newTemplate = new DocumentTemplate
                 {
                     Name = dto.Name,
@@ -908,158 +625,102 @@ namespace WordGenerator.Api.Controllers
                             Value = x.Value,
                             Order = x.Order
                         }).ToList(),
-                        ImageGroups = dto.CoverPage.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
-                        {
-                            Title = g.Title,
-                            Order = g.Order,
-                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
-                            Images = g.Images.Select(img => new ImageItem
-                            {
-                                FileName = img.FileName,
-                                Caption = img.Caption,
-                                Order = img.Order,
-                                Width = img.Width,
-                                Height = img.Height,
-                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                            }).ToList()
-                        }).ToList() ?? new List<ImageGroup>(),
-                        Tables = dto.CoverPage.Tables.Select(x => new DynamicTable
-                        {
-                            Title = x.Title,
-                            Order = x.Order,
-                            ShowRowNumbers = x.ShowRowNumbers,
-                            RowNumberHeader = x.RowNumberHeader,
-                            Columns = x.Columns.OrderBy(c => c.Order).Select(c => new TableColumnDefinition
-                            {
-                                Header = c.Header,
-                                Width = c.Width,
-                                Order = c.Order
-                            }).ToList()
-                        }).ToList()
+                        Elements = new List<ContentElement>()
                     },
-                    MasterSections = dto.MasterSections.OrderBy(x => x.Order).Select(x => new MasterSection
-                    {
-                        Title = x.Title,
-                        Order = x.Order,
-                        ShowInToc = x.ShowInToc,
-                        Paragraphs = x.Paragraphs.OrderBy(p => p.Order).Select(p => new MasterSectionParagraph
-                        {
-                            Text = p.Text,
-                            Order = p.Order
-                        }).ToList(),
-                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
-                        {
-                            Title = g.Title,
-                            Order = g.Order,
-                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
-                            Images = g.Images.Select(img => new ImageItem
-                            {
-                                FileName = img.FileName,
-                                Caption = img.Caption,
-                                Order = img.Order,
-                                Width = img.Width,
-                                Height = img.Height,
-                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                            }).ToList()
-                        }).ToList() ?? new List<ImageGroup>(),
-                        SubSections = x.SubSections.OrderBy(s => s.Order).Select(s => new SubSection
-                        {
-                            Title = s.Title,
-                            Order = s.Order,
-                            ShowInToc = s.ShowInToc,
-                            Paragraphs = s.Paragraphs.OrderBy(p => p.Order).Select(p => new SubSectionParagraph
-                            {
-                                Text = p.Text,
-                                Order = p.Order
-                            }).ToList(),
-                            ImageGroups = s.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
-                            {
-                                Title = g.Title,
-                                Order = g.Order,
-                                ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
-                                Images = g.Images.Select(img => new ImageItem
-                                {
-                                    FileName = img.FileName,
-                                    Caption = img.Caption,
-                                    Order = img.Order,
-                                    Width = img.Width,
-                                    Height = img.Height,
-                                    ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                                }).ToList()
-                            }).ToList() ?? new List<ImageGroup>(),
-                            Tables = s.Tables.Select(t => new DynamicTable
-                            {
-                                Title = t.Title,
-                                Order = t.Order,
-                                ShowRowNumbers = t.ShowRowNumbers,
-                                RowNumberHeader = t.RowNumberHeader,
-                                Columns = t.Columns.OrderBy(c => c.Order).Select(c => new TableColumnDefinition
-                                {
-                                    Header = c.Header,
-                                    Width = c.Width,
-                                    Order = c.Order
-                                }).ToList()
-                            }).ToList()
-                        }).ToList(),
-                        Tables = x.Tables.Select(t => new DynamicTable
-                        {
-                            Title = t.Title,
-                            Order = t.Order,
-                            ShowRowNumbers = t.ShowRowNumbers,
-                            RowNumberHeader = t.RowNumberHeader,
-                            Columns = t.Columns.OrderBy(c => c.Order).Select(c => new TableColumnDefinition
-                            {
-                                Header = c.Header,
-                                Width = c.Width,
-                                Order = c.Order
-                            }).ToList()
-                        }).ToList()
-                    }).ToList(),
-                    Sections = dto.Sections.OrderBy(x => x.Order).Select(x => new TemplateSection
-                    {
-                        Title = x.Title,
-                        Order = x.Order,
-                        Paragraphs = x.Paragraphs.OrderBy(p => p.Order).Select(p => new SectionParagraph
-                        {
-                            Text = p.Text,
-                            Order = p.Order
-                        }).ToList(),
-                        ImageGroups = x.ImageGroups?.OrderBy(g => g.Order).Select(g => new ImageGroup
-                        {
-                            Title = g.Title,
-                            Order = g.Order,
-                            ImagesPerRow = g.ImagesPerRow > 0 ? g.ImagesPerRow : 2,
-                            Images = g.Images.Select(img => new ImageItem
-                            {
-                                FileName = img.FileName,
-                                Caption = img.Caption,
-                                Order = img.Order,
-                                Width = img.Width,
-                                Height = img.Height,
-                                ImageData = string.IsNullOrEmpty(img.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(img.ImageBase64)
-                            }).ToList()
-                        }).ToList() ?? new List<ImageGroup>(),
-                        Tables = x.Tables.Select(t => new DynamicTable
-                        {
-                            Title = t.Title,
-                            Order = t.Order,
-                            ShowRowNumbers = t.ShowRowNumbers,
-                            RowNumberHeader = t.RowNumberHeader,
-                            Columns = t.Columns.OrderBy(c => c.Order).Select(c => new TableColumnDefinition
-                            {
-                                Header = c.Header,
-                                Width = c.Width,
-                                Order = c.Order
-                            }).ToList()
-                        }).ToList()
-                    }).ToList()
+                    MasterSections = new List<MasterSection>(),
+                    Sections = new List<TemplateSection>()
                 };
 
                 _context.DocumentTemplates.Add(newTemplate);
                 await _context.SaveChangesAsync();
 
-                await AddAllTableRowsAndCells(dto, newTemplate);
-                await _context.SaveChangesAsync();
+                // ========== 14. اضافه کردن Cover Page Elements ==========
+                if (dto.CoverPage != null && newTemplate.CoverPage != null)
+                {
+                    newTemplate.CoverPage.Elements = await MapContentElements(
+                        dto.CoverPage.Elements,
+                        null,
+                        null,
+                        null,
+                        newTemplate.CoverPage.Id
+                    );
+                    await _context.SaveChangesAsync();
+                }
+
+                // ========== 15. اضافه کردن Master Sections ==========
+                foreach (var masterDto in dto.MasterSections.OrderBy(x => x.Order))
+                {
+                    var master = new MasterSection
+                    {
+                        Title = masterDto.Title,
+                        Order = masterDto.Order,
+                        ShowInToc = masterDto.ShowInToc,
+                        TemplateId = newTemplate.Id,
+                        SubSections = new List<SubSection>(),
+                        Elements = new List<ContentElement>()
+                    };
+
+                    _context.MasterSections.Add(master);
+                    await _context.SaveChangesAsync();
+
+                    master.Elements = await MapContentElements(
+                        masterDto.Elements,
+                        master.Id,
+                        null,
+                        null,
+                        null
+                    );
+                    await _context.SaveChangesAsync();
+
+                    // Sub Sections
+                    foreach (var subDto in masterDto.SubSections.OrderBy(x => x.Order))
+                    {
+                        var sub = new SubSection
+                        {
+                            Title = subDto.Title,
+                            Order = subDto.Order,
+                            ShowInToc = subDto.ShowInToc,
+                            MasterSectionId = master.Id,
+                            Elements = new List<ContentElement>()
+                        };
+
+                        _context.SubSections.Add(sub);
+                        await _context.SaveChangesAsync();
+
+                        sub.Elements = await MapContentElements(
+                            subDto.Elements,
+                            null,
+                            sub.Id,
+                            null,
+                            null
+                        );
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                // ========== 16. اضافه کردن Legacy Sections ==========
+                foreach (var sectionDto in dto.Sections.OrderBy(x => x.Order))
+                {
+                    var section = new TemplateSection
+                    {
+                        Title = sectionDto.Title,
+                        Order = sectionDto.Order,
+                        TemplateId = newTemplate.Id,
+                        Elements = new List<ContentElement>()
+                    };
+
+                    _context.TemplateSections.Add(section);
+                    await _context.SaveChangesAsync();
+
+                    section.Elements = await MapContentElements(
+                        sectionDto.Elements,
+                        null,
+                        null,
+                        section.Id,
+                        null
+                    );
+                    await _context.SaveChangesAsync();
+                }
 
                 await transaction.CommitAsync();
                 return Ok(new { Id = newTemplate.Id });
@@ -1069,6 +730,185 @@ namespace WordGenerator.Api.Controllers
                 await transaction.RollbackAsync();
                 throw;
             }
+        }
+
+        // =========================
+        // Helper Methods
+        // =========================
+
+        private async Task<List<ContentElement>> MapContentElements(
+            List<ContentElementDto> elements,
+            long? masterSectionId,
+            long? subSectionId,
+            long? templateSectionId,
+            long? coverPageId)
+        {
+            var result = new List<ContentElement>();
+
+            if (elements == null || !elements.Any())
+                return result;
+
+            foreach (var elementDto in elements.OrderBy(x => x.Order))
+            {
+                var element = new ContentElement
+                {
+                    Type = elementDto.Type switch
+                    {
+                        "paragraph" => ContentElementType.Paragraph,
+                        "image" => ContentElementType.Image,
+                        "table" => ContentElementType.Table,
+                        _ => ContentElementType.Paragraph
+                    },
+                    Order = elementDto.Order,
+                    MasterSectionId = masterSectionId,
+                    SubSectionId = subSectionId,
+                    TemplateSectionId = templateSectionId,
+                    CoverPageId = coverPageId
+                };
+
+                switch (element.Type)
+                {
+                    case ContentElementType.Paragraph:
+                        element.ParagraphText = elementDto.Text;
+                        break;
+
+                    case ContentElementType.Image when elementDto.Image != null:
+                        element.Image = new ImageItem
+                        {
+                            FileName = elementDto.Image.FileName,
+                            Caption = elementDto.Image.Caption,
+                            Order = elementDto.Order,
+                            Width = elementDto.Image.Width,
+                            Height = elementDto.Image.Height,
+                            ImageData = string.IsNullOrEmpty(elementDto.Image.ImageBase64)
+                                ? Array.Empty<byte>()
+                                : Convert.FromBase64String(elementDto.Image.ImageBase64)
+                        };
+                        break;
+
+                    case ContentElementType.Table when elementDto.Table != null:
+                        // مرحله 1: ایجاد جدول با ستون‌ها
+                        var table = new DynamicTable
+                        {
+                            Title = elementDto.Table.Title,
+                            Order = elementDto.Table.Order,
+                            ShowRowNumbers = elementDto.Table.ShowRowNumbers,
+                            RowNumberHeader = elementDto.Table.RowNumberHeader,
+                            Columns = elementDto.Table.Columns.OrderBy(c => c.Order).Select(c => new TableColumnDefinition
+                            {
+                                Header = c.Header,
+                                Width = c.Width,
+                                Order = c.Order
+                            }).ToList()
+                        };
+
+                        // ذخیره جدول برای گرفتن Id
+                        _context.DynamicTables.Add(table);
+                        await _context.SaveChangesAsync();
+
+                        // مرحله 2: ایجاد ردیف‌ها و سلول‌ها با استفاده از Id ستون‌های واقعی
+                        var columns = table.Columns.OrderBy(c => c.Order).ToList();
+                        foreach (var rowDto in elementDto.Table.Rows.OrderBy(x => x.RowNumber))
+                        {
+                            var row = new TableDataRow
+                            {
+                                RowNumber = rowDto.RowNumber,
+                                DynamicTableId = table.Id,
+                                Cells = new List<TableDataCell>()
+                            };
+
+                            for (int i = 0; i < columns.Count && i < (rowDto.Values?.Count ?? 0); i++)
+                            {
+                                row.Cells.Add(new TableDataCell
+                                {
+                                    TableColumnDefinitionId = columns[i].Id,
+                                    Value = rowDto.Values[i] ?? ""
+                                });
+                            }
+
+                            _context.TableRows.Add(row);
+                        }
+
+                        await _context.SaveChangesAsync();
+
+                        element.Table = table;
+                        break;
+                }
+
+                result.Add(element);
+            }
+
+            return result;
+        }
+
+        private object MapContentElementToDto(ContentElement element)
+        {
+            var baseObj = new
+            {
+                element.Id,
+                Type = element.Type.ToString().ToLower(),
+                element.Order
+            };
+
+            return element.Type switch
+            {
+                ContentElementType.Paragraph => new
+                {
+                    baseObj.Id,
+                    baseObj.Type,
+                    baseObj.Order,
+                    Text = element.ParagraphText
+                },
+                ContentElementType.Image when element.Image != null => new
+                {
+                    baseObj.Id,
+                    baseObj.Type,
+                    baseObj.Order,
+                    Image = new
+                    {
+                        element.Image.Id,
+                        element.Image.FileName,
+                        element.Image.Caption,
+                        element.Image.Order,
+                        element.Image.Width,
+                        element.Image.Height,
+                        ImageBase64 = Convert.ToBase64String(element.Image.ImageData)
+                    }
+                },
+                ContentElementType.Table when element.Table != null => new
+                {
+                    baseObj.Id,
+                    baseObj.Type,
+                    baseObj.Order,
+                    table = new  // ← با حروف کوچک
+                    {
+                        element.Table.Id,
+                        element.Table.Title,
+                        element.Table.Order,
+                        element.Table.ShowRowNumbers,
+                        element.Table.RowNumberHeader,
+                        columns = element.Table.Columns.OrderBy(c => c.Order).Select(c => new  // ← با حروف کوچک
+                        {
+                            c.Id,
+                            c.Header,
+                            c.Width,
+                            c.Order
+                        }),
+                        rows = element.Table.Rows.OrderBy(r => r.RowNumber).Select(r => new  // ← با حروف کوچک
+                        {
+                            r.Id,
+                            r.RowNumber,
+                            cells = r.Cells.OrderBy(c => c.Column.Order).Select(c => new  // ← با حروف کوچک
+                            {
+                                c.Id,
+                                ColumnId = c.TableColumnDefinitionId,
+                                c.Value
+                            }).ToList()
+                        })
+                    }
+                },
+                _ => baseObj
+            };
         }
     }
 }

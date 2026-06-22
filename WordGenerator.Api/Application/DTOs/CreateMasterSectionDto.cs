@@ -6,37 +6,19 @@ namespace WordGenerator.Api.Application.DTOs
     /// </summary>
     public class CreateMasterSectionDto
     {
-        public string Title { get; set; } = null!;
+        public string? Title { get; set; }
         public int Order { get; set; }
         public bool ShowInToc { get; set; } = true;
-
-        // زیربخش‌ها
+        public List<ContentElementDto> Elements { get; set; } = new(); // جدید
         public List<CreateSubSectionDto> SubSections { get; set; } = new();
-
-        // پاراگراف‌های مستقیم (بدون زیربخش)
-        public List<CreateMasterParagraphDto> Paragraphs { get; set; } = new();
-
-        // جداول مستقیم
-        public List<CreateDynamicTableDto> Tables { get; set; } = new();
-        public List<ImageItemDto> Images { get; set; } = new();
-        public List<ImageGroupDto> ImageGroups { get; set; } = new();
-
     }
 
     public class CreateSubSectionDto
     {
-        public string Title { get; set; } = null!;
+        public string? Title { get; set; }
         public int Order { get; set; }
         public bool ShowInToc { get; set; } = true;
-
-        // پاراگراف‌ها
-        public List<CreateSubParagraphDto> Paragraphs { get; set; } = new();
-
-        // جداول
-        public List<CreateDynamicTableDto> Tables { get; set; } = new();
-        public List<ImageItemDto> Images { get; set; } = new();
-        public List<ImageGroupDto> ImageGroups { get; set; } = new();
-
+        public List<ContentElementDto> Elements { get; set; } = new(); // جدید
     }
 
     public class CreateMasterParagraphDto
