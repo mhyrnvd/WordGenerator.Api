@@ -7,6 +7,7 @@ namespace WordGenerator.Api.Application.DTOs
         public bool IncludeTableOfContents { get; set; } = true;
         public List<MasterSectionDataDto> MasterSections { get; set; } = new();
         public List<SectionDataDto> Sections { get; set; } = new();
+        public PageHeaderDto? PageHeader { get; set; }
     }
 
     /// <summary>

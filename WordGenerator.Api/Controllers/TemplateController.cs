@@ -31,6 +31,19 @@ namespace WordGenerator.Api.Controllers
                 var template = new DocumentTemplate
                 {
                     Name = dto.Name,
+                    PageHeader = dto.PageHeader == null ? null : new PageHeader
+                    {
+                        HeaderText = dto.PageHeader.HeaderText,
+                        IsActive = dto.PageHeader.IsActive,
+                        Logos = dto.PageHeader.Logos?.Select(l => new HeaderLogo
+                        {
+                            FileName = l.FileName,
+                            Order = l.Order,
+                            Width = l.Width,
+                            Height = l.Height,
+                            ImageData = string.IsNullOrEmpty(l.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(l.ImageBase64)
+                        }).ToList() ?? new List<HeaderLogo>()
+                    },
                     CoverPage = dto.CoverPage == null ? null : new CoverPageTemplate
                     {
                         Title = dto.CoverPage.Title,
@@ -78,7 +91,6 @@ namespace WordGenerator.Api.Controllers
                     _context.MasterSections.Add(master);
                     await _context.SaveChangesAsync();
 
-                    // Elements Master
                     master.Elements = await MapContentElements(
                         masterDto.Elements,
                         master.Id,
@@ -88,7 +100,6 @@ namespace WordGenerator.Api.Controllers
                     );
                     await _context.SaveChangesAsync();
 
-                    // ========== Sub Sections ==========
                     foreach (var subDto in masterDto.SubSections.OrderBy(x => x.Order))
                     {
                         var sub = new SubSection
@@ -103,7 +114,6 @@ namespace WordGenerator.Api.Controllers
                         _context.SubSections.Add(sub);
                         await _context.SaveChangesAsync();
 
-                        // Elements Sub
                         sub.Elements = await MapContentElements(
                             subDto.Elements,
                             null,
@@ -161,6 +171,7 @@ namespace WordGenerator.Api.Controllers
                     x.Id,
                     x.Name,
                     HasCoverPage = x.CoverPage != null,
+                    HasPageHeader = x.PageHeader != null,
                     MasterSectionsCount = x.MasterSections.Count,
                     SectionsCount = x.Sections.Count
                 })
@@ -177,6 +188,8 @@ namespace WordGenerator.Api.Controllers
         {
             var template = await _context.DocumentTemplates
                 .AsNoTracking()
+                .Include(x => x.PageHeader)
+                    .ThenInclude(x => x.Logos)
                 .Include(x => x.CoverPage)
                     .ThenInclude(x => x.Items)
                 .Include(x => x.CoverPage)
@@ -243,6 +256,22 @@ namespace WordGenerator.Api.Controllers
             {
                 template.Id,
                 template.Name,
+
+                PageHeader = template.PageHeader == null ? null : new
+                {
+                    template.PageHeader.Id,
+                    template.PageHeader.HeaderText,
+                    template.PageHeader.IsActive,
+                    Logos = template.PageHeader.Logos.OrderBy(l => l.Order).Select(l => new
+                    {
+                        l.Id,
+                        l.FileName,
+                        l.Order,
+                        l.Width,
+                        l.Height,
+                        ImageBase64 = Convert.ToBase64String(l.ImageData)
+                    })
+                },
 
                 CoverPage = template.CoverPage == null ? null : new
                 {
@@ -315,8 +344,9 @@ namespace WordGenerator.Api.Controllers
 
             try
             {
-                // پیدا کردن تمپلیت موجود
                 var existingTemplate = await _context.DocumentTemplates
+                    .Include(x => x.PageHeader)
+                        .ThenInclude(x => x.Logos)
                     .Include(x => x.CoverPage)
                         .ThenInclude(x => x.Items)
                     .Include(x => x.CoverPage)
@@ -376,203 +406,27 @@ namespace WordGenerator.Api.Controllers
                     return NotFound();
 
                 // ========== 1. حذف سلول‌های جداول ==========
-                var allCells = existingTemplate.MasterSections
-                    .SelectMany(m => m.Elements)
-                    .Where(e => e.Table != null)
-                    .SelectMany(e => e.Table.Rows)
-                    .SelectMany(r => r.Cells)
-                    .ToList();
-
-                allCells.AddRange(existingTemplate.Sections
-                    .SelectMany(s => s.Elements)
-                    .Where(e => e.Table != null)
-                    .SelectMany(e => e.Table.Rows)
-                    .SelectMany(r => r.Cells));
-
-                if (existingTemplate.CoverPage != null)
-                {
-                    allCells.AddRange(existingTemplate.CoverPage.Elements
-                        .Where(e => e.Table != null)
-                        .SelectMany(e => e.Table.Rows)
-                        .SelectMany(r => r.Cells));
-                }
-
-                foreach (var master in existingTemplate.MasterSections)
-                {
-                    foreach (var sub in master.SubSections)
-                    {
-                        allCells.AddRange(sub.Elements
-                            .Where(e => e.Table != null)
-                            .SelectMany(e => e.Table.Rows)
-                            .SelectMany(r => r.Cells));
-                    }
-                }
-
-                if (allCells.Any())
-                    _context.TableCells.RemoveRange(allCells);
-
+                await DeleteAllCells(existingTemplate);
                 await _context.SaveChangesAsync();
 
                 // ========== 2. حذف ردیف‌های جداول ==========
-                var allRows = existingTemplate.MasterSections
-                    .SelectMany(m => m.Elements)
-                    .Where(e => e.Table != null)
-                    .SelectMany(e => e.Table.Rows)
-                    .ToList();
-
-                allRows.AddRange(existingTemplate.Sections
-                    .SelectMany(s => s.Elements)
-                    .Where(e => e.Table != null)
-                    .SelectMany(e => e.Table.Rows));
-
-                if (existingTemplate.CoverPage != null)
-                {
-                    allRows.AddRange(existingTemplate.CoverPage.Elements
-                        .Where(e => e.Table != null)
-                        .SelectMany(e => e.Table.Rows));
-                }
-
-                foreach (var master in existingTemplate.MasterSections)
-                {
-                    foreach (var sub in master.SubSections)
-                    {
-                        allRows.AddRange(sub.Elements
-                            .Where(e => e.Table != null)
-                            .SelectMany(e => e.Table.Rows));
-                    }
-                }
-
-                if (allRows.Any())
-                    _context.TableRows.RemoveRange(allRows);
-
+                await DeleteAllRows(existingTemplate);
                 await _context.SaveChangesAsync();
 
                 // ========== 3. حذف ستون‌های جداول ==========
-                var allColumns = existingTemplate.MasterSections
-                    .SelectMany(m => m.Elements)
-                    .Where(e => e.Table != null)
-                    .SelectMany(e => e.Table.Columns)
-                    .ToList();
-
-                allColumns.AddRange(existingTemplate.Sections
-                    .SelectMany(s => s.Elements)
-                    .Where(e => e.Table != null)
-                    .SelectMany(e => e.Table.Columns));
-
-                if (existingTemplate.CoverPage != null)
-                {
-                    allColumns.AddRange(existingTemplate.CoverPage.Elements
-                        .Where(e => e.Table != null)
-                        .SelectMany(e => e.Table.Columns));
-                }
-
-                foreach (var master in existingTemplate.MasterSections)
-                {
-                    foreach (var sub in master.SubSections)
-                    {
-                        allColumns.AddRange(sub.Elements
-                            .Where(e => e.Table != null)
-                            .SelectMany(e => e.Table.Columns));
-                    }
-                }
-
-                if (allColumns.Any())
-                    _context.TableColumns.RemoveRange(allColumns);
-
+                await DeleteAllColumns(existingTemplate);
                 await _context.SaveChangesAsync();
 
                 // ========== 4. حذف جداول ==========
-                var allTables = existingTemplate.MasterSections
-                    .SelectMany(m => m.Elements)
-                    .Where(e => e.Table != null)
-                    .Select(e => e.Table)
-                    .ToList();
-
-                allTables.AddRange(existingTemplate.Sections
-                    .SelectMany(s => s.Elements)
-                    .Where(e => e.Table != null)
-                    .Select(e => e.Table));
-
-                if (existingTemplate.CoverPage != null)
-                {
-                    allTables.AddRange(existingTemplate.CoverPage.Elements
-                        .Where(e => e.Table != null)
-                        .Select(e => e.Table));
-                }
-
-                foreach (var master in existingTemplate.MasterSections)
-                {
-                    foreach (var sub in master.SubSections)
-                    {
-                        allTables.AddRange(sub.Elements
-                            .Where(e => e.Table != null)
-                            .Select(e => e.Table));
-                    }
-                }
-
-                if (allTables.Any())
-                    _context.DynamicTables.RemoveRange(allTables);
-
+                await DeleteAllTables(existingTemplate);
                 await _context.SaveChangesAsync();
 
                 // ========== 5. حذف تمام Elementها ==========
-                var allElements = existingTemplate.MasterSections
-                    .SelectMany(m => m.Elements)
-                    .ToList();
-
-                allElements.AddRange(existingTemplate.Sections
-                    .SelectMany(s => s.Elements));
-
-                if (existingTemplate.CoverPage != null)
-                {
-                    allElements.AddRange(existingTemplate.CoverPage.Elements);
-                }
-
-                foreach (var master in existingTemplate.MasterSections)
-                {
-                    foreach (var sub in master.SubSections)
-                    {
-                        allElements.AddRange(sub.Elements);
-                    }
-                }
-
-                if (allElements.Any())
-                    _context.ContentElements.RemoveRange(allElements);
-
+                await DeleteAllElements(existingTemplate);
                 await _context.SaveChangesAsync();
 
                 // ========== 6. حذف تصاویر (Images) ==========
-                var allImages = existingTemplate.MasterSections
-                    .SelectMany(m => m.Elements)
-                    .Where(e => e.Image != null)
-                    .Select(e => e.Image)
-                    .ToList();
-
-                allImages.AddRange(existingTemplate.Sections
-                    .SelectMany(s => s.Elements)
-                    .Where(e => e.Image != null)
-                    .Select(e => e.Image));
-
-                if (existingTemplate.CoverPage != null)
-                {
-                    allImages.AddRange(existingTemplate.CoverPage.Elements
-                        .Where(e => e.Image != null)
-                        .Select(e => e.Image));
-                }
-
-                foreach (var master in existingTemplate.MasterSections)
-                {
-                    foreach (var sub in master.SubSections)
-                    {
-                        allImages.AddRange(sub.Elements
-                            .Where(e => e.Image != null)
-                            .Select(e => e.Image));
-                    }
-                }
-
-                if (allImages.Any())
-                    _context.Images.RemoveRange(allImages);
-
+                await DeleteAllImages(existingTemplate);
                 await _context.SaveChangesAsync();
 
                 // ========== 7. حذف زیربخش‌ها ==========
@@ -581,41 +435,58 @@ namespace WordGenerator.Api.Controllers
                     if (master.SubSections.Any())
                         _context.SubSections.RemoveRange(master.SubSections);
                 }
-
                 await _context.SaveChangesAsync();
 
                 // ========== 8. حذف بخش‌های اصلی ==========
                 if (existingTemplate.MasterSections.Any())
                     _context.MasterSections.RemoveRange(existingTemplate.MasterSections);
-
                 await _context.SaveChangesAsync();
 
                 // ========== 9. حذف بخش‌های قدیمی ==========
                 if (existingTemplate.Sections.Any())
                     _context.TemplateSections.RemoveRange(existingTemplate.Sections);
-
                 await _context.SaveChangesAsync();
 
                 // ========== 10. حذف آیتم‌های کاورپیج ==========
                 if (existingTemplate.CoverPage != null && existingTemplate.CoverPage.Items.Any())
                     _context.CoverPageItems.RemoveRange(existingTemplate.CoverPage.Items);
-
                 await _context.SaveChangesAsync();
 
                 // ========== 11. حذف کاورپیج ==========
                 if (existingTemplate.CoverPage != null)
                     _context.CoverPageTemplates.Remove(existingTemplate.CoverPage);
-
                 await _context.SaveChangesAsync();
 
-                // ========== 12. حذف خود تمپلیت ==========
+                // ========== 12. حذف PageHeader و لوگوها ==========
+                if (existingTemplate.PageHeader != null)
+                {
+                    if (existingTemplate.PageHeader.Logos.Any())
+                        _context.HeaderLogos.RemoveRange(existingTemplate.PageHeader.Logos);
+                    _context.PageHeaders.Remove(existingTemplate.PageHeader);
+                }
+                await _context.SaveChangesAsync();
+
+                // ========== 13. حذف خود تمپلیت ==========
                 _context.DocumentTemplates.Remove(existingTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 13. ایجاد تمپلیت جدید ==========
+                // ========== 14. ایجاد تمپلیت جدید ==========
                 var newTemplate = new DocumentTemplate
                 {
                     Name = dto.Name,
+                    PageHeader = dto.PageHeader == null ? null : new PageHeader
+                    {
+                        HeaderText = dto.PageHeader.HeaderText,
+                        IsActive = dto.PageHeader.IsActive,
+                        Logos = dto.PageHeader.Logos?.Select(l => new HeaderLogo
+                        {
+                            FileName = l.FileName,
+                            Order = l.Order,
+                            Width = l.Width,
+                            Height = l.Height,
+                            ImageData = string.IsNullOrEmpty(l.ImageBase64) ? Array.Empty<byte>() : Convert.FromBase64String(l.ImageBase64)
+                        }).ToList() ?? new List<HeaderLogo>()
+                    },
                     CoverPage = dto.CoverPage == null ? null : new CoverPageTemplate
                     {
                         Title = dto.CoverPage.Title,
@@ -634,7 +505,7 @@ namespace WordGenerator.Api.Controllers
                 _context.DocumentTemplates.Add(newTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 14. اضافه کردن Cover Page Elements ==========
+                // ========== 15. اضافه کردن Cover Page Elements ==========
                 if (dto.CoverPage != null && newTemplate.CoverPage != null)
                 {
                     newTemplate.CoverPage.Elements = await MapContentElements(
@@ -647,7 +518,7 @@ namespace WordGenerator.Api.Controllers
                     await _context.SaveChangesAsync();
                 }
 
-                // ========== 15. اضافه کردن Master Sections ==========
+                // ========== 16. اضافه کردن Master Sections ==========
                 foreach (var masterDto in dto.MasterSections.OrderBy(x => x.Order))
                 {
                     var master = new MasterSection
@@ -672,7 +543,6 @@ namespace WordGenerator.Api.Controllers
                     );
                     await _context.SaveChangesAsync();
 
-                    // Sub Sections
                     foreach (var subDto in masterDto.SubSections.OrderBy(x => x.Order))
                     {
                         var sub = new SubSection
@@ -698,7 +568,7 @@ namespace WordGenerator.Api.Controllers
                     }
                 }
 
-                // ========== 16. اضافه کردن Legacy Sections ==========
+                // ========== 17. اضافه کردن Legacy Sections ==========
                 foreach (var sectionDto in dto.Sections.OrderBy(x => x.Order))
                 {
                     var section = new TemplateSection
@@ -787,7 +657,6 @@ namespace WordGenerator.Api.Controllers
                         break;
 
                     case ContentElementType.Table when elementDto.Table != null:
-                        // مرحله 1: ایجاد جدول با ستون‌ها
                         var table = new DynamicTable
                         {
                             Title = elementDto.Table.Title,
@@ -802,11 +671,9 @@ namespace WordGenerator.Api.Controllers
                             }).ToList()
                         };
 
-                        // ذخیره جدول برای گرفتن Id
                         _context.DynamicTables.Add(table);
                         await _context.SaveChangesAsync();
 
-                        // مرحله 2: ایجاد ردیف‌ها و سلول‌ها با استفاده از Id ستون‌های واقعی
                         var columns = table.Columns.OrderBy(c => c.Order).ToList();
                         foreach (var rowDto in elementDto.Table.Rows.OrderBy(x => x.RowNumber))
                         {
@@ -880,25 +747,25 @@ namespace WordGenerator.Api.Controllers
                     baseObj.Id,
                     baseObj.Type,
                     baseObj.Order,
-                    table = new  // ← با حروف کوچک
+                    table = new
                     {
                         element.Table.Id,
                         element.Table.Title,
                         element.Table.Order,
                         element.Table.ShowRowNumbers,
                         element.Table.RowNumberHeader,
-                        columns = element.Table.Columns.OrderBy(c => c.Order).Select(c => new  // ← با حروف کوچک
+                        columns = element.Table.Columns.OrderBy(c => c.Order).Select(c => new
                         {
                             c.Id,
                             c.Header,
                             c.Width,
                             c.Order
                         }),
-                        rows = element.Table.Rows.OrderBy(r => r.RowNumber).Select(r => new  // ← با حروف کوچک
+                        rows = element.Table.Rows.OrderBy(r => r.RowNumber).Select(r => new
                         {
                             r.Id,
                             r.RowNumber,
-                            cells = r.Cells.OrderBy(c => c.Column.Order).Select(c => new  // ← با حروف کوچک
+                            cells = r.Cells.OrderBy(c => c.Column.Order).Select(c => new
                             {
                                 c.Id,
                                 ColumnId = c.TableColumnDefinitionId,
@@ -909,6 +776,208 @@ namespace WordGenerator.Api.Controllers
                 },
                 _ => baseObj
             };
+        }
+
+        // ========== متدهای کمکی حذف ==========
+
+        private async Task DeleteAllCells(DocumentTemplate template)
+        {
+            var allCells = new List<TableDataCell>();
+
+            if (template.CoverPage != null)
+            {
+                foreach (var element in template.CoverPage.Elements.Where(e => e.Table != null))
+                {
+                    foreach (var row in element.Table.Rows)
+                        allCells.AddRange(row.Cells);
+                }
+            }
+
+            foreach (var master in template.MasterSections)
+            {
+                foreach (var element in master.Elements.Where(e => e.Table != null))
+                {
+                    foreach (var row in element.Table.Rows)
+                        allCells.AddRange(row.Cells);
+                }
+                foreach (var sub in master.SubSections)
+                {
+                    foreach (var element in sub.Elements.Where(e => e.Table != null))
+                    {
+                        foreach (var row in element.Table.Rows)
+                            allCells.AddRange(row.Cells);
+                    }
+                }
+            }
+
+            foreach (var section in template.Sections)
+            {
+                foreach (var element in section.Elements.Where(e => e.Table != null))
+                {
+                    foreach (var row in element.Table.Rows)
+                        allCells.AddRange(row.Cells);
+                }
+            }
+
+            if (allCells.Any())
+                _context.TableCells.RemoveRange(allCells);
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task DeleteAllRows(DocumentTemplate template)
+        {
+            var allRows = new List<TableDataRow>();
+
+            if (template.CoverPage != null)
+            {
+                foreach (var element in template.CoverPage.Elements.Where(e => e.Table != null))
+                    allRows.AddRange(element.Table.Rows);
+            }
+
+            foreach (var master in template.MasterSections)
+            {
+                foreach (var element in master.Elements.Where(e => e.Table != null))
+                    allRows.AddRange(element.Table.Rows);
+                foreach (var sub in master.SubSections)
+                {
+                    foreach (var element in sub.Elements.Where(e => e.Table != null))
+                        allRows.AddRange(element.Table.Rows);
+                }
+            }
+
+            foreach (var section in template.Sections)
+            {
+                foreach (var element in section.Elements.Where(e => e.Table != null))
+                    allRows.AddRange(element.Table.Rows);
+            }
+
+            if (allRows.Any())
+                _context.TableRows.RemoveRange(allRows);
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task DeleteAllColumns(DocumentTemplate template)
+        {
+            var allColumns = new List<TableColumnDefinition>();
+
+            if (template.CoverPage != null)
+            {
+                foreach (var element in template.CoverPage.Elements.Where(e => e.Table != null))
+                    allColumns.AddRange(element.Table.Columns);
+            }
+
+            foreach (var master in template.MasterSections)
+            {
+                foreach (var element in master.Elements.Where(e => e.Table != null))
+                    allColumns.AddRange(element.Table.Columns);
+                foreach (var sub in master.SubSections)
+                {
+                    foreach (var element in sub.Elements.Where(e => e.Table != null))
+                        allColumns.AddRange(element.Table.Columns);
+                }
+            }
+
+            foreach (var section in template.Sections)
+            {
+                foreach (var element in section.Elements.Where(e => e.Table != null))
+                    allColumns.AddRange(element.Table.Columns);
+            }
+
+            if (allColumns.Any())
+                _context.TableColumns.RemoveRange(allColumns);
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task DeleteAllTables(DocumentTemplate template)
+        {
+            var allTables = new List<DynamicTable>();
+
+            if (template.CoverPage != null)
+            {
+                foreach (var element in template.CoverPage.Elements.Where(e => e.Table != null))
+                    allTables.Add(element.Table);
+            }
+
+            foreach (var master in template.MasterSections)
+            {
+                foreach (var element in master.Elements.Where(e => e.Table != null))
+                    allTables.Add(element.Table);
+                foreach (var sub in master.SubSections)
+                {
+                    foreach (var element in sub.Elements.Where(e => e.Table != null))
+                        allTables.Add(element.Table);
+                }
+            }
+
+            foreach (var section in template.Sections)
+            {
+                foreach (var element in section.Elements.Where(e => e.Table != null))
+                    allTables.Add(element.Table);
+            }
+
+            if (allTables.Any())
+                _context.DynamicTables.RemoveRange(allTables);
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task DeleteAllElements(DocumentTemplate template)
+        {
+            var allElements = new List<ContentElement>();
+
+            if (template.CoverPage != null)
+                allElements.AddRange(template.CoverPage.Elements);
+
+            foreach (var master in template.MasterSections)
+            {
+                allElements.AddRange(master.Elements);
+                foreach (var sub in master.SubSections)
+                    allElements.AddRange(sub.Elements);
+            }
+
+            foreach (var section in template.Sections)
+                allElements.AddRange(section.Elements);
+
+            if (allElements.Any())
+                _context.ContentElements.RemoveRange(allElements);
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task DeleteAllImages(DocumentTemplate template)
+        {
+            var allImages = new List<ImageItem>();
+
+            if (template.CoverPage != null)
+            {
+                foreach (var element in template.CoverPage.Elements.Where(e => e.Image != null))
+                    allImages.Add(element.Image);
+            }
+
+            foreach (var master in template.MasterSections)
+            {
+                foreach (var element in master.Elements.Where(e => e.Image != null))
+                    allImages.Add(element.Image);
+                foreach (var sub in master.SubSections)
+                {
+                    foreach (var element in sub.Elements.Where(e => e.Image != null))
+                        allImages.Add(element.Image);
+                }
+            }
+
+            foreach (var section in template.Sections)
+            {
+                foreach (var element in section.Elements.Where(e => e.Image != null))
+                    allImages.Add(element.Image);
+            }
+
+            if (allImages.Any())
+                _context.Images.RemoveRange(allImages);
+
+            await _context.SaveChangesAsync();
         }
     }
 }

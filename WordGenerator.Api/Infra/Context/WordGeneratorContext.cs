@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using WordGenerator.Api.Domain.Entities;
 using WordGenerator.Api.Infra.Configurations;
+using WordGenerator.Api.Infra.Implementation.Configs;
 
 namespace WordGenerator.Api.Infra.Context
 {
@@ -24,6 +25,8 @@ namespace WordGenerator.Api.Infra.Context
         public DbSet<TableColumnDefinition> TableColumns { get; set; }
         public DbSet<TableDataRow> TableRows { get; set; }
         public DbSet<TableDataCell> TableCells { get; set; }
+        public DbSet<HeaderLogo> HeaderLogos { get; set; }
+        public DbSet<PageHeader> PageHeaders { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,6 +44,8 @@ namespace WordGenerator.Api.Infra.Context
             modelBuilder.ApplyConfiguration(new TableDataRowConfiguration());
             modelBuilder.ApplyConfiguration(new TableDataCellConfiguration());
             modelBuilder.ApplyConfiguration(new DocumentTemplateConfiguration());
+            modelBuilder.ApplyConfiguration(new PageHeaderConfiguration());
+            modelBuilder.ApplyConfiguration(new HeaderLogoConfiguration());
         }
     }
 }
