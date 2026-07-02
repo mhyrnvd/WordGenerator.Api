@@ -19,6 +19,10 @@ namespace WordGenerator.Api.Domain.Entities
         public long? TableId { get; set; }
         public virtual DynamicTable? Table { get; set; }
 
+        // برای Bullet List (جدید)
+        public long? BulletListId { get; set; }
+        public virtual BulletList? BulletList { get; set; }
+
         // ارتباط با بخش‌ها
         public long? MasterSectionId { get; set; }
         public virtual MasterSection? MasterSection { get; set; }

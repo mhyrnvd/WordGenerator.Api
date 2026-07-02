@@ -205,6 +205,10 @@ namespace WordGenerator.Api.Controllers
                             .ThenInclude(t => t.Rows)
                                 .ThenInclude(r => r.Cells)
                                     .ThenInclude(c => c.Column)
+                .Include(x => x.CoverPage)
+                    .ThenInclude(x => x.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.Elements)
                         .ThenInclude(e => e.Image)
@@ -218,6 +222,10 @@ namespace WordGenerator.Api.Controllers
                             .ThenInclude(t => t.Rows)
                                 .ThenInclude(r => r.Cells)
                                     .ThenInclude(c => c.Column)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.SubSections)
                         .ThenInclude(s => s.Elements)
@@ -234,6 +242,11 @@ namespace WordGenerator.Api.Controllers
                                 .ThenInclude(t => t.Rows)
                                     .ThenInclude(r => r.Cells)
                                         .ThenInclude(c => c.Column)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.SubSections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
                 .Include(x => x.Sections)
                     .ThenInclude(s => s.Elements)
                         .ThenInclude(e => e.Image)
@@ -247,6 +260,10 @@ namespace WordGenerator.Api.Controllers
                             .ThenInclude(t => t.Rows)
                                 .ThenInclude(r => r.Cells)
                                     .ThenInclude(c => c.Column)
+                .Include(x => x.Sections)
+                    .ThenInclude(s => s.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (template == null)
@@ -322,16 +339,187 @@ namespace WordGenerator.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(long id)
         {
-            var template = await _context.DocumentTemplates
-                .FirstOrDefaultAsync(x => x.Id == id);
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
-            if (template == null)
-                return NotFound();
+            try
+            {
+                // بارگذاری کامل تمپلیت با تمام وابستگی‌ها
+                var template = await _context.DocumentTemplates
+                    .Include(x => x.PageHeader)
+                        .ThenInclude(x => x.Logos)
+                    .Include(x => x.CoverPage)
+                        .ThenInclude(x => x.Items)
+                    .Include(x => x.CoverPage)
+                        .ThenInclude(x => x.Elements)
+                            .ThenInclude(e => e.Image)
+                    .Include(x => x.CoverPage)
+                        .ThenInclude(x => x.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Columns)
+                    .Include(x => x.CoverPage)
+                        .ThenInclude(x => x.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Rows)
+                                    .ThenInclude(r => r.Cells)
+                    .Include(x => x.CoverPage)
+                        .ThenInclude(x => x.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.Elements)
+                            .ThenInclude(e => e.Image)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Columns)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Rows)
+                                    .ThenInclude(r => r.Cells)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.SubSections)
+                            .ThenInclude(s => s.Elements)
+                                .ThenInclude(e => e.Image)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.SubSections)
+                            .ThenInclude(s => s.Elements)
+                                .ThenInclude(e => e.Table)
+                                    .ThenInclude(t => t.Columns)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.SubSections)
+                            .ThenInclude(s => s.Elements)
+                                .ThenInclude(e => e.Table)
+                                    .ThenInclude(t => t.Rows)
+                                        .ThenInclude(r => r.Cells)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.SubSections)
+                            .ThenInclude(s => s.Elements)
+                                .ThenInclude(e => e.BulletList)
+                                    .ThenInclude(b => b.Items)
+                    .Include(x => x.Sections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Image)
+                    .Include(x => x.Sections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Columns)
+                    .Include(x => x.Sections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Rows)
+                                    .ThenInclude(r => r.Cells)
+                    .Include(x => x.Sections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
+                    .FirstOrDefaultAsync(x => x.Id == id);
 
-            _context.DocumentTemplates.Remove(template);
-            await _context.SaveChangesAsync();
+                if (template == null)
+                    return NotFound();
 
-            return Ok();
+                // ========== حذف به ترتیب و با رعایت روابط Restrict ==========
+
+                // 1. حذف سلول‌های جداول
+                await DeleteAllCells(template);
+                await _context.SaveChangesAsync();
+
+                // 2. حذف ردیف‌های جداول
+                await DeleteAllRows(template);
+                await _context.SaveChangesAsync();
+
+                // 3. حذف ستون‌های جداول
+                await DeleteAllColumns(template);
+                await _context.SaveChangesAsync();
+
+                // 4. حذف جداول
+                await DeleteAllTables(template);
+                await _context.SaveChangesAsync();
+
+                // 5. حذف Bullet List Items
+                await DeleteAllBulletListItems(template);
+                await _context.SaveChangesAsync();
+
+                // 6. حذف Bullet Lists
+                await DeleteAllBulletLists(template);
+                await _context.SaveChangesAsync();
+
+                // 7. حذف تصاویر
+                await DeleteAllImages(template);
+                await _context.SaveChangesAsync();
+
+                // 8. حذف تمام Elementها
+                await DeleteAllElements(template);
+                await _context.SaveChangesAsync();
+
+                // 9. حذف آیتم‌های کاورپیج
+                if (template.CoverPage != null && template.CoverPage.Items.Any())
+                {
+                    _context.CoverPageItems.RemoveRange(template.CoverPage.Items);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 10. حذف کاورپیج
+                if (template.CoverPage != null)
+                {
+                    _context.CoverPageTemplates.Remove(template.CoverPage);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 11. حذف زیربخش‌ها
+                foreach (var master in template.MasterSections)
+                {
+                    if (master.SubSections.Any())
+                    {
+                        _context.SubSections.RemoveRange(master.SubSections);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                // 12. حذف بخش‌های اصلی
+                if (template.MasterSections.Any())
+                {
+                    _context.MasterSections.RemoveRange(template.MasterSections);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 13. حذف بخش‌های قدیمی
+                if (template.Sections.Any())
+                {
+                    _context.TemplateSections.RemoveRange(template.Sections);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 14. حذف لوگوهای هدر
+                if (template.PageHeader != null && template.PageHeader.Logos.Any())
+                {
+                    _context.HeaderLogos.RemoveRange(template.PageHeader.Logos);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 15. حذف PageHeader
+                if (template.PageHeader != null)
+                {
+                    _context.PageHeaders.Remove(template.PageHeader);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 16. حذف خود تمپلیت
+                _context.DocumentTemplates.Remove(template);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+                return Ok(new { Message = "Template deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         // =========================
@@ -361,6 +549,10 @@ namespace WordGenerator.Api.Controllers
                             .ThenInclude(e => e.Table)
                                 .ThenInclude(t => t.Rows)
                                     .ThenInclude(r => r.Cells)
+                    .Include(x => x.CoverPage)
+                        .ThenInclude(x => x.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
                     .Include(x => x.MasterSections)
                         .ThenInclude(m => m.Elements)
                             .ThenInclude(e => e.Image)
@@ -373,6 +565,10 @@ namespace WordGenerator.Api.Controllers
                             .ThenInclude(e => e.Table)
                                 .ThenInclude(t => t.Rows)
                                     .ThenInclude(r => r.Cells)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
                     .Include(x => x.MasterSections)
                         .ThenInclude(m => m.SubSections)
                             .ThenInclude(s => s.Elements)
@@ -388,6 +584,11 @@ namespace WordGenerator.Api.Controllers
                                 .ThenInclude(e => e.Table)
                                     .ThenInclude(t => t.Rows)
                                         .ThenInclude(r => r.Cells)
+                    .Include(x => x.MasterSections)
+                        .ThenInclude(m => m.SubSections)
+                            .ThenInclude(s => s.Elements)
+                                .ThenInclude(e => e.BulletList)
+                                    .ThenInclude(b => b.Items)
                     .Include(x => x.Sections)
                         .ThenInclude(s => s.Elements)
                             .ThenInclude(e => e.Image)
@@ -400,77 +601,106 @@ namespace WordGenerator.Api.Controllers
                             .ThenInclude(e => e.Table)
                                 .ThenInclude(t => t.Rows)
                                     .ThenInclude(r => r.Cells)
+                    .Include(x => x.Sections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
                     .FirstOrDefaultAsync(x => x.Id == id);
 
                 if (existingTemplate == null)
                     return NotFound();
 
-                // ========== 1. حذف سلول‌های جداول ==========
+                // ========== حذف به ترتیب با رعایت روابط Restrict ==========
+
+                // 1. حذف سلول‌های جداول
                 await DeleteAllCells(existingTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 2. حذف ردیف‌های جداول ==========
+                // 2. حذف ردیف‌های جداول
                 await DeleteAllRows(existingTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 3. حذف ستون‌های جداول ==========
+                // 3. حذف ستون‌های جداول
                 await DeleteAllColumns(existingTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 4. حذف جداول ==========
+                // 4. حذف جداول
                 await DeleteAllTables(existingTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 5. حذف تمام Elementها ==========
-                await DeleteAllElements(existingTemplate);
+                // 5. حذف Bullet List Items
+                await DeleteAllBulletListItems(existingTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 6. حذف تصاویر (Images) ==========
+                // 6. حذف Bullet Lists
+                await DeleteAllBulletLists(existingTemplate);
+                await _context.SaveChangesAsync();
+
+                // 7. حذف تصاویر
                 await DeleteAllImages(existingTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 7. حذف زیربخش‌ها ==========
+                // 8. حذف تمام Elementها
+                await DeleteAllElements(existingTemplate);
+                await _context.SaveChangesAsync();
+
+                // 9. حذف آیتم‌های کاورپیج
+                if (existingTemplate.CoverPage != null && existingTemplate.CoverPage.Items.Any())
+                {
+                    _context.CoverPageItems.RemoveRange(existingTemplate.CoverPage.Items);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 10. حذف کاورپیج
+                if (existingTemplate.CoverPage != null)
+                {
+                    _context.CoverPageTemplates.Remove(existingTemplate.CoverPage);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 11. حذف زیربخش‌ها
                 foreach (var master in existingTemplate.MasterSections)
                 {
                     if (master.SubSections.Any())
+                    {
                         _context.SubSections.RemoveRange(master.SubSections);
+                        await _context.SaveChangesAsync();
+                    }
                 }
-                await _context.SaveChangesAsync();
 
-                // ========== 8. حذف بخش‌های اصلی ==========
+                // 12. حذف بخش‌های اصلی
                 if (existingTemplate.MasterSections.Any())
+                {
                     _context.MasterSections.RemoveRange(existingTemplate.MasterSections);
-                await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync();
+                }
 
-                // ========== 9. حذف بخش‌های قدیمی ==========
+                // 13. حذف بخش‌های قدیمی
                 if (existingTemplate.Sections.Any())
+                {
                     _context.TemplateSections.RemoveRange(existingTemplate.Sections);
-                await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync();
+                }
 
-                // ========== 10. حذف آیتم‌های کاورپیج ==========
-                if (existingTemplate.CoverPage != null && existingTemplate.CoverPage.Items.Any())
-                    _context.CoverPageItems.RemoveRange(existingTemplate.CoverPage.Items);
-                await _context.SaveChangesAsync();
+                // 14. حذف لوگوهای هدر
+                if (existingTemplate.PageHeader != null && existingTemplate.PageHeader.Logos.Any())
+                {
+                    _context.HeaderLogos.RemoveRange(existingTemplate.PageHeader.Logos);
+                    await _context.SaveChangesAsync();
+                }
 
-                // ========== 11. حذف کاورپیج ==========
-                if (existingTemplate.CoverPage != null)
-                    _context.CoverPageTemplates.Remove(existingTemplate.CoverPage);
-                await _context.SaveChangesAsync();
-
-                // ========== 12. حذف PageHeader و لوگوها ==========
+                // 15. حذف PageHeader
                 if (existingTemplate.PageHeader != null)
                 {
-                    if (existingTemplate.PageHeader.Logos.Any())
-                        _context.HeaderLogos.RemoveRange(existingTemplate.PageHeader.Logos);
                     _context.PageHeaders.Remove(existingTemplate.PageHeader);
+                    await _context.SaveChangesAsync();
                 }
-                await _context.SaveChangesAsync();
 
-                // ========== 13. حذف خود تمپلیت ==========
+                // 16. حذف خود تمپلیت
                 _context.DocumentTemplates.Remove(existingTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 14. ایجاد تمپلیت جدید ==========
+                // ========== 17. ایجاد تمپلیت جدید ==========
                 var newTemplate = new DocumentTemplate
                 {
                     Name = dto.Name,
@@ -505,7 +735,7 @@ namespace WordGenerator.Api.Controllers
                 _context.DocumentTemplates.Add(newTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 15. اضافه کردن Cover Page Elements ==========
+                // ========== 18. اضافه کردن Cover Page Elements ==========
                 if (dto.CoverPage != null && newTemplate.CoverPage != null)
                 {
                     newTemplate.CoverPage.Elements = await MapContentElements(
@@ -518,7 +748,7 @@ namespace WordGenerator.Api.Controllers
                     await _context.SaveChangesAsync();
                 }
 
-                // ========== 16. اضافه کردن Master Sections ==========
+                // ========== 19. اضافه کردن Master Sections ==========
                 foreach (var masterDto in dto.MasterSections.OrderBy(x => x.Order))
                 {
                     var master = new MasterSection
@@ -568,7 +798,7 @@ namespace WordGenerator.Api.Controllers
                     }
                 }
 
-                // ========== 17. اضافه کردن Legacy Sections ==========
+                // ========== 20. اضافه کردن Legacy Sections ==========
                 foreach (var sectionDto in dto.Sections.OrderBy(x => x.Order))
                 {
                     var section = new TemplateSection
@@ -627,6 +857,7 @@ namespace WordGenerator.Api.Controllers
                         "paragraph" => ContentElementType.Paragraph,
                         "image" => ContentElementType.Image,
                         "table" => ContentElementType.Table,
+                        "bulletlist" => ContentElementType.BulletList,
                         _ => ContentElementType.Paragraph
                     },
                     Order = elementDto.Order,
@@ -700,6 +931,25 @@ namespace WordGenerator.Api.Controllers
 
                         element.Table = table;
                         break;
+
+                    case ContentElementType.BulletList when elementDto.BulletList != null:
+                        var bulletList = new BulletList
+                        {
+                            Title = elementDto.BulletList.Title,
+                            Order = elementDto.BulletList.Order,
+                            Items = elementDto.BulletList.Items.OrderBy(x => x.Order).Select(x => new BulletListItem
+                            {
+                                Text = x.Text,
+                                Order = x.Order,
+                                Level = x.Level
+                            }).ToList()
+                        };
+
+                        _context.BulletLists.Add(bulletList);
+                        await _context.SaveChangesAsync();
+
+                        element.BulletList = bulletList;
+                        break;
                 }
 
                 result.Add(element);
@@ -772,6 +1022,25 @@ namespace WordGenerator.Api.Controllers
                                 c.Value
                             }).ToList()
                         })
+                    }
+                },
+                ContentElementType.BulletList when element.BulletList != null => new
+                {
+                    baseObj.Id,
+                    baseObj.Type,
+                    baseObj.Order,
+                    bulletList = new
+                    {
+                        element.BulletList.Id,
+                        element.BulletList.Title,
+                        element.BulletList.Order,
+                        items = element.BulletList.Items.OrderBy(x => x.Order).Select(x => new
+                        {
+                            x.Id,
+                            x.Text,
+                            x.Order,
+                            x.Level
+                        }).ToList()
                     }
                 },
                 _ => baseObj
@@ -920,6 +1189,80 @@ namespace WordGenerator.Api.Controllers
 
             if (allTables.Any())
                 _context.DynamicTables.RemoveRange(allTables);
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task DeleteAllBulletListItems(DocumentTemplate template)
+        {
+            var allItems = new List<BulletListItem>();
+
+            if (template.CoverPage != null)
+            {
+                foreach (var element in template.CoverPage.Elements.Where(e => e.BulletList != null))
+                {
+                    allItems.AddRange(element.BulletList.Items);
+                }
+            }
+
+            foreach (var master in template.MasterSections)
+            {
+                foreach (var element in master.Elements.Where(e => e.BulletList != null))
+                {
+                    allItems.AddRange(element.BulletList.Items);
+                }
+                foreach (var sub in master.SubSections)
+                {
+                    foreach (var element in sub.Elements.Where(e => e.BulletList != null))
+                    {
+                        allItems.AddRange(element.BulletList.Items);
+                    }
+                }
+            }
+
+            foreach (var section in template.Sections)
+            {
+                foreach (var element in section.Elements.Where(e => e.BulletList != null))
+                {
+                    allItems.AddRange(element.BulletList.Items);
+                }
+            }
+
+            if (allItems.Any())
+                _context.BulletListItems.RemoveRange(allItems);
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task DeleteAllBulletLists(DocumentTemplate template)
+        {
+            var allBulletLists = new List<BulletList>();
+
+            if (template.CoverPage != null)
+            {
+                foreach (var element in template.CoverPage.Elements.Where(e => e.BulletList != null))
+                    allBulletLists.Add(element.BulletList);
+            }
+
+            foreach (var master in template.MasterSections)
+            {
+                foreach (var element in master.Elements.Where(e => e.BulletList != null))
+                    allBulletLists.Add(element.BulletList);
+                foreach (var sub in master.SubSections)
+                {
+                    foreach (var element in sub.Elements.Where(e => e.BulletList != null))
+                        allBulletLists.Add(element.BulletList);
+                }
+            }
+
+            foreach (var section in template.Sections)
+            {
+                foreach (var element in section.Elements.Where(e => e.BulletList != null))
+                    allBulletLists.Add(element.BulletList);
+            }
+
+            if (allBulletLists.Any())
+                _context.BulletLists.RemoveRange(allBulletLists);
 
             await _context.SaveChangesAsync();
         }
