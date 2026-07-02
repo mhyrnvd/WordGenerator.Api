@@ -9,12 +9,12 @@ using WordGenerator.Api.Application.Requests;
 using WordGenerator.Api.Domain.Entities;
 using WordGenerator.Api.Domain.Enums;
 using WordGenerator.Api.Infra.Context;
+
+// ===== Using aliases =====
+using W = DocumentFormat.OpenXml.Wordprocessing;
 using D = DocumentFormat.OpenXml.Drawing;
 using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
-// ===== Using aliases =====
-using W = DocumentFormat.OpenXml.Wordprocessing;
-// =========================
 
 namespace WordGenerator.Api.Application.Services
 {
@@ -55,7 +55,6 @@ namespace WordGenerator.Api.Application.Services
                 {
                     body.Append(CreateCoverPageFromDto(document.CoverPage));
 
-                    // رندر کردن عناصر کاورپیج
                     foreach (var element in document.CoverPage.Elements.OrderBy(x => x.Order))
                     {
                         RenderElement(body, element, mainPart);
@@ -73,14 +72,13 @@ namespace WordGenerator.Api.Application.Services
                     body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
                 }
 
-                // Master Sections (Hierarchical)
+                // Master Sections
                 int masterCounter = 0;
                 foreach (var masterSection in document.MasterSections.OrderBy(x => x.Order))
                 {
                     masterCounter++;
                     body.Append(CreateMasterHeading(masterSection.Title, masterCounter.ToString()));
 
-                    // رندر کردن عناصر Master Section
                     foreach (var element in masterSection.Elements.OrderBy(x => x.Order))
                     {
                         RenderElement(body, element, mainPart);
@@ -92,7 +90,6 @@ namespace WordGenerator.Api.Application.Services
                         subCounter++;
                         body.Append(CreateSubHeading(subSection.Title, $"{subCounter}-{masterCounter}"));
 
-                        // رندر کردن عناصر Sub Section
                         foreach (var element in subSection.Elements.OrderBy(x => x.Order))
                         {
                             RenderElement(body, element, mainPart);
@@ -100,12 +97,11 @@ namespace WordGenerator.Api.Application.Services
                     }
                 }
 
-                // Legacy Sections (for backward compatibility)
+                // Legacy Sections
                 foreach (var section in document.Sections.OrderBy(x => x.Order))
                 {
                     body.Append(CreateHeading(section.Title, "32"));
 
-                    // رندر کردن عناصر Legacy Section
                     foreach (var element in section.Elements.OrderBy(x => x.Order))
                     {
                         RenderElement(body, element, mainPart);
@@ -307,7 +303,6 @@ namespace WordGenerator.Api.Application.Services
                         RenderElement(body, element, mainPart);
                     }
 
-                    // ========== Sub Sections ==========
                     int subCounter = 0;
                     foreach (var subSection in masterSection.SubSections.OrderBy(x => x.Order))
                     {
@@ -333,12 +328,281 @@ namespace WordGenerator.Api.Application.Services
                 }
 
                 mainPart.Document.Append(body);
+
+                // ========== اضافه کردن Header با روش جدید ==========
+                if (request.PageHeader != null && request.PageHeader.IsActive)
+                {
+                    AddHeaderToDocument(mainPart, request.PageHeader);
+                }
+
                 mainPart.Document.Save();
             }
 
             return ms.ToArray();
         }
+        #endregion
 
+        #region Page Header
+        private void AddHeaderToDocument(MainDocumentPart mainPart, PageHeaderDto pageHeader)
+        {
+            // ========== 1. ایجاد Header Part ==========
+            var headerPart = mainPart.AddNewPart<HeaderPart>();
+            var header = new W.Header();
+
+            // ========== 2. ایجاد جدول ==========
+            var table = new W.Table();
+
+            var tableProps = new W.TableProperties(
+                new W.TableBorders(
+                    new W.TopBorder { Val = W.BorderValues.Nil },
+                    new W.BottomBorder { Val = W.BorderValues.Nil },
+                    new W.LeftBorder { Val = W.BorderValues.Nil },
+                    new W.RightBorder { Val = W.BorderValues.Nil },
+                    new W.InsideHorizontalBorder { Val = W.BorderValues.Nil },
+                    new W.InsideVerticalBorder { Val = W.BorderValues.Nil }
+                ),
+                new W.TableWidth { Width = "100%", Type = W.TableWidthUnitValues.Pct },
+                new W.TableLayout { Type = W.TableLayoutValues.Autofit },
+                new W.Justification { Val = W.JustificationValues.Center }
+            );
+            table.Append(tableProps);
+
+            var row = new W.TableRow();
+            row.Append(new W.TableRowProperties(
+                new W.TableRowHeight { Val = 500, HeightType = W.HeightRuleValues.AtLeast }
+            ));
+
+            // ========== ستون چپ (لوگوها) ==========
+            var leftCell = new W.TableCell();
+            var leftCellProps = new W.TableCellProperties(
+                new W.TableCellWidth { Type = W.TableWidthUnitValues.Pct, Width = "50" },
+                new W.TableCellVerticalAlignment { Val = W.TableVerticalAlignmentValues.Center },
+                new W.Justification { Val = W.JustificationValues.Left }
+            );
+            leftCell.Append(leftCellProps);
+
+            var leftParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.Justification { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "0", Before = "0" }
+                )
+            );
+
+            // لوگوها - با فاصله بین آنها
+            var logos = pageHeader.Logos?.OrderBy(x => x.Order).ToList() ?? new List<HeaderLogoDto>();
+
+            // ========== اضافه کردن لوگو اول ==========
+            if (logos.Any())
+            {
+                var firstLogo = logos[0];
+                var firstImageDto = new ImageItemDto
+                {
+                    FileName = firstLogo.FileName,
+                    Width = firstLogo.Width > 0 ? firstLogo.Width : 60,
+                    Height = firstLogo.Height > 0 ? firstLogo.Height : 40,
+                    ImageBase64 = firstLogo.ImageBase64
+                };
+                InsertImageToHeader(leftParagraph, firstImageDto, mainPart, headerPart);
+            }
+
+            // ========== اضافه کردن بقیه لوگوها با فاصله ==========
+            for (int i = 1; i < logos.Count; i++)
+            {
+                // ========== فاصله بین لوگو قبلی و این لوگو ==========
+                var spaceRun = new W.Run();
+                var spaceRunProps = new W.RunProperties();
+                spaceRun.AppendChild(spaceRunProps);
+
+                var spaceText = new W.Text("     ");  // ۵ فاصله
+                spaceText.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
+                spaceRun.AppendChild(spaceText);
+                leftParagraph.AppendChild(spaceRun);
+
+                // ========== اضافه کردن لوگو ==========
+                var logo = logos[i];
+                var imageDto = new ImageItemDto
+                {
+                    FileName = logo.FileName,
+                    Width = logo.Width > 0 ? logo.Width : 60,
+                    Height = logo.Height > 0 ? logo.Height : 40,
+                    ImageBase64 = logo.ImageBase64
+                };
+                InsertImageToHeader(leftParagraph, imageDto, mainPart, headerPart);
+            }
+
+            leftCell.Append(leftParagraph);
+            row.Append(leftCell);
+
+            // ========== ستون راست (متن هدر) ==========
+            var rightCell = new W.TableCell();
+            var rightCellProps = new W.TableCellProperties(
+                new W.TableCellWidth { Type = W.TableWidthUnitValues.Pct, Width = "50" },
+                new W.TableCellVerticalAlignment { Val = W.TableVerticalAlignmentValues.Center },
+                new W.Justification { Val = W.JustificationValues.Right }
+            );
+            rightCell.Append(rightCellProps);
+
+            var rightParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.Justification { Val = W.JustificationValues.Right },
+                    new W.SpacingBetweenLines { After = "0", Before = "0" }
+                )
+            );
+
+            if (!string.IsNullOrEmpty(pageHeader.HeaderText))
+            {
+                rightParagraph.Append(new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                        new W.FontSize { Val = "22" },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(pageHeader.HeaderText))
+                ));
+            }
+
+            rightCell.Append(rightParagraph);
+            row.Append(rightCell);
+
+            table.Append(row);
+            header.Append(table);
+            headerPart.Header = header;
+
+            // ========== اتصال Header به سند ==========
+            var headerReference = new W.HeaderReference
+            {
+                Id = mainPart.GetIdOfPart(headerPart),
+                Type = W.HeaderFooterValues.Default
+            };
+
+            var sectionProperties = mainPart.Document.Descendants<W.SectionProperties>().FirstOrDefault();
+            if (sectionProperties == null)
+            {
+                sectionProperties = new W.SectionProperties();
+                var pageMargin = new W.PageMargin
+                {
+                    Top = 1440,
+                    Bottom = 1440,
+                    Left = 1440,
+                    Right = 1440,
+                    Header = 720,
+                    Footer = 720
+                };
+                sectionProperties.Append(pageMargin);
+                mainPart.Document.Append(sectionProperties);
+            }
+
+            sectionProperties.PrependChild(headerReference);
+        }
+
+        // ========== متد درج تصویر در هدر ==========
+        private void InsertImageToHeader(W.Paragraph paragraph, ImageItemDto imageDto, MainDocumentPart mainPart, HeaderPart headerPart)
+        {
+            if (string.IsNullOrEmpty(imageDto.ImageBase64))
+                return;
+
+            try
+            {
+                var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+
+                var imagePartType = ImagePartType.Jpeg;
+                if (imageBytes.Length > 4)
+                {
+                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+                        imagePartType = ImagePartType.Png;
+                    else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
+                        imagePartType = ImagePartType.Jpeg;
+                }
+
+                var imagePart = headerPart.AddImagePart(imagePartType);
+                using (var stream = new MemoryStream(imageBytes))
+                {
+                    imagePart.FeedData(stream);
+                }
+                var imagePartId = headerPart.GetIdOfPart(imagePart);
+
+                long cx = (long)(imageDto.Width * 9525);
+                long cy = (long)(imageDto.Height * 9525);
+
+                if (cx < 1) cx = 9525;
+                if (cy < 1) cy = 9525;
+
+                var run = new W.Run();
+
+                var drawing = new W.Drawing(
+                    new DW.Inline(
+                        new DW.Extent() { Cx = cx, Cy = cy },
+                            new DW.EffectExtent()
+                            {
+                                LeftEdge = 0L,
+                                TopEdge = 0L,
+                                RightEdge = 100000L, // فاصله سمت راست لوگو
+                                BottomEdge = 0L
+                            },
+                        new DW.DocProperties()
+                        {
+                            Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks),
+                            Name = imageDto.FileName ?? "Logo"
+                        },
+                        new DW.NonVisualGraphicFrameDrawingProperties(
+                            new D.GraphicFrameLocks() { NoChangeAspect = true }
+                        ),
+                        new D.Graphic(
+                            new D.GraphicData(
+                                new PIC.Picture(
+                                    new PIC.NonVisualPictureProperties(
+                                        new PIC.NonVisualDrawingProperties()
+                                        {
+                                            Id = (UInt32Value)0U,
+                                            Name = imageDto.FileName ?? "logo.jpg"
+                                        },
+                                        new PIC.NonVisualPictureDrawingProperties()
+                                    ),
+                                    new PIC.BlipFill(
+                                        new D.Blip()
+                                        {
+                                            Embed = imagePartId
+                                        },
+                                        new D.Stretch(
+                                            new D.FillRectangle()
+                                        )
+                                    ),
+                                    new PIC.ShapeProperties(
+                                        new D.Transform2D(
+                                            new D.Offset() { X = 0L, Y = 0L },
+                                            new D.Extents()
+                                            {
+                                                Cx = cx,
+                                                Cy = cy
+                                            }
+                                        ),
+                                        new D.PresetGeometry(
+                                            new D.AdjustValueList()
+                                        )
+                                        { Preset = D.ShapeTypeValues.Rectangle }
+                                    )
+                                )
+                            )
+                            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
+                        )
+                    )
+                );
+
+                run.AppendChild(drawing);
+                paragraph.AppendChild(run);
+            }
+            catch (Exception ex)
+            {
+                var run = new W.Run(
+                    new W.RunProperties(
+                        new W.FontSize { Val = "16" },
+                        new W.Color { Val = "FF6600" }
+                    ),
+                    new W.Text($"[{imageDto.FileName ?? "لوگو"}]")
+                );
+                paragraph.AppendChild(run);
+            }
+        }
         #endregion
 
         #region Element Rendering Methods
@@ -440,8 +704,11 @@ namespace WordGenerator.Api.Application.Services
                 }
                 var imagePartId = mainPart.GetIdOfPart(imagePart);
 
-                long cx = 3000000L;
-                long cy = 2000000L;
+                long cx = (long)(imageDto.Width * 9525);
+                long cy = (long)(imageDto.Height * 9525);
+
+                if (cx < 1) cx = 9525;
+                if (cy < 1) cy = 9525;
 
                 var run = new W.Run();
 
@@ -450,8 +717,8 @@ namespace WordGenerator.Api.Application.Services
                         new DW.Extent() { Cx = cx, Cy = cy },
                         new DW.DocProperties()
                         {
-                            Id = (UInt32Value)1U,
-                            Name = "Image"
+                            Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks),
+                            Name = imageDto.FileName ?? "Image"
                         },
                         new DW.NonVisualGraphicFrameDrawingProperties(
                             new D.GraphicFrameLocks() { NoChangeAspect = true }
@@ -463,7 +730,7 @@ namespace WordGenerator.Api.Application.Services
                                         new PIC.NonVisualDrawingProperties()
                                         {
                                             Id = (UInt32Value)0U,
-                                            Name = "img.jpg"
+                                            Name = imageDto.FileName ?? "img.jpg"
                                         },
                                         new PIC.NonVisualPictureDrawingProperties()
                                     ),
