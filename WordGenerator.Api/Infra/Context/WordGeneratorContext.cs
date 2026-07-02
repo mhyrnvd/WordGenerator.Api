@@ -27,6 +27,8 @@ namespace WordGenerator.Api.Infra.Context
         public DbSet<TableDataCell> TableCells { get; set; }
         public DbSet<HeaderLogo> HeaderLogos { get; set; }
         public DbSet<PageHeader> PageHeaders { get; set; }
+        public DbSet<BulletList> BulletLists { get; set; } = null!;
+        public DbSet<BulletListItem> BulletListItems { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -46,6 +48,8 @@ namespace WordGenerator.Api.Infra.Context
             modelBuilder.ApplyConfiguration(new DocumentTemplateConfiguration());
             modelBuilder.ApplyConfiguration(new PageHeaderConfiguration());
             modelBuilder.ApplyConfiguration(new HeaderLogoConfiguration());
+            modelBuilder.ApplyConfiguration(new BulletListItemConfiguration());
+            modelBuilder.ApplyConfiguration(new BulletListConfiguration());
         }
     }
 }

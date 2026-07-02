@@ -60,6 +60,12 @@ namespace WordGenerator.Api.Infra.Configurations
                 .HasForeignKey(x => x.CoverPageId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            builder.HasOne(x => x.BulletList)
+                .WithMany()
+                .HasForeignKey(x => x.BulletListId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
             // ایندکس‌ها
             builder.HasIndex(x => x.Order);
             builder.HasIndex(x => x.MasterSectionId);
