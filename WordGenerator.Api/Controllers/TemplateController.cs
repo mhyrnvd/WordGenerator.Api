@@ -836,6 +836,8 @@ namespace WordGenerator.Api.Controllers
         // Helper Methods
         // =========================
 
+        // TemplateController.cs - متد MapContentElements اصلاح شده
+
         private async Task<List<ContentElement>> MapContentElements(
             List<ContentElementDto> elements,
             long? masterSectionId,
@@ -888,6 +890,7 @@ namespace WordGenerator.Api.Controllers
                         break;
 
                     case ContentElementType.Table when elementDto.Table != null:
+                        // 1. ایجاد جدول
                         var table = new DynamicTable
                         {
                             Title = elementDto.Table.Title,
@@ -905,7 +908,22 @@ namespace WordGenerator.Api.Controllers
                         _context.DynamicTables.Add(table);
                         await _context.SaveChangesAsync();
 
+                        // 2. گرفتن ستون‌ها با Idهای واقعی دیتابیس
                         var columns = table.Columns.OrderBy(c => c.Order).ToList();
+
+                        // ✅ 3. ساخت دیکشنری برای نگاشت ColumnId فرانت به Id واقعی دیتابیس
+                        var columnIdMap = new Dictionary<long, long>();
+                        for (int i = 0; i < columns.Count && i < elementDto.Table.Columns.Count; i++)
+                        {
+                            var frontendColumn = elementDto.Table.Columns.OrderBy(c => c.Order).ElementAt(i);
+                            var dbColumn = columns[i];
+                            if (frontendColumn.Id.HasValue)
+                            {
+                                columnIdMap[frontendColumn.Id.Value] = dbColumn.Id;
+                            }
+                        }
+
+                        // 4. ایجاد ردیف‌ها
                         foreach (var rowDto in elementDto.Table.Rows.OrderBy(x => x.RowNumber))
                         {
                             var row = new TableDataRow
@@ -915,16 +933,52 @@ namespace WordGenerator.Api.Controllers
                                 Cells = new List<TableDataCell>()
                             };
 
-                            for (int i = 0; i < columns.Count && i < (rowDto.Values?.Count ?? 0); i++)
+                            // ✅ استفاده از Cells با Value و نگاشت ColumnId
+                            if (rowDto.Cells != null && rowDto.Cells.Any())
                             {
-                                row.Cells.Add(new TableDataCell
+                                foreach (var cellDto in rowDto.Cells)
                                 {
-                                    TableColumnDefinitionId = columns[i].Id,
-                                    Value = rowDto.Values[i] ?? ""
-                                });
+                                    // ✅ پیدا کردن Id واقعی ستون از دیکشنری
+                                    if (columnIdMap.TryGetValue(cellDto.ColumnId, out long dbColumnId))
+                                    {
+                                        row.Cells.Add(new TableDataCell
+                                        {
+                                            TableColumnDefinitionId = dbColumnId,
+                                            Value = cellDto.Value ?? ""
+                                        });
+                                    }
+                                    else
+                                    {
+                                        // اگر ستون پیدا نشد، سعی کن با Id خودش پیدا کنی (برای حالت‌های خاص)
+                                        var column = columns.FirstOrDefault(c => c.Id == cellDto.ColumnId);
+                                        if (column != null)
+                                        {
+                                            row.Cells.Add(new TableDataCell
+                                            {
+                                                TableColumnDefinitionId = column.Id,
+                                                Value = cellDto.Value ?? ""
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                            // Fallback به Values اگر Cells نباشه
+                            else if (rowDto.Values != null && rowDto.Values.Any())
+                            {
+                                for (int i = 0; i < columns.Count && i < rowDto.Values.Count; i++)
+                                {
+                                    row.Cells.Add(new TableDataCell
+                                    {
+                                        TableColumnDefinitionId = columns[i].Id,
+                                        Value = rowDto.Values[i] ?? ""
+                                    });
+                                }
                             }
 
-                            _context.TableRows.Add(row);
+                            if (row.Cells.Any())
+                            {
+                                _context.TableRows.Add(row);
+                            }
                         }
 
                         await _context.SaveChangesAsync();
@@ -1015,12 +1069,15 @@ namespace WordGenerator.Api.Controllers
                         {
                             r.Id,
                             r.RowNumber,
+                            // ✅ برگرداندن Cells با Value
                             cells = r.Cells.OrderBy(c => c.Column.Order).Select(c => new
                             {
                                 c.Id,
                                 ColumnId = c.TableColumnDefinitionId,
                                 c.Value
-                            }).ToList()
+                            }).ToList(),
+                            // برای سازگاری با عقب
+                            values = r.Cells.OrderBy(c => c.Column.Order).Select(c => c.Value).ToList()
                         })
                     }
                 },

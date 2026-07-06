@@ -638,11 +638,15 @@ namespace WordGenerator.Api.Application.Services
             try
             {
                 var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+                if (imageBytes == null || imageBytes.Length == 0)
+                    return;
 
+                // تشخیص نوع تصویر
                 var imagePartType = ImagePartType.Jpeg;
                 if (imageBytes.Length > 4)
                 {
-                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 &&
+                        imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
                         imagePartType = ImagePartType.Png;
                     else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
                         imagePartType = ImagePartType.Jpeg;
@@ -654,6 +658,8 @@ namespace WordGenerator.Api.Application.Services
                     imagePart.FeedData(stream);
                 }
                 var imagePartId = headerPart.GetIdOfPart(imagePart);
+                if (string.IsNullOrEmpty(imagePartId))
+                    return;
 
                 long cx = (long)(imageDto.Width * 9525);
                 long cy = (long)(imageDto.Height * 9525);
@@ -661,18 +667,31 @@ namespace WordGenerator.Api.Application.Services
                 if (cx < 1) cx = 9525;
                 if (cy < 1) cy = 9525;
 
+                // محدودیت اندازه
+                long maxSize = 200 * 9525;  // حداکثر 200px برای هدر
+                if (cx > maxSize)
+                {
+                    cy = (long)(cy * ((double)maxSize / cx));
+                    cx = maxSize;
+                }
+                if (cy > maxSize)
+                {
+                    cx = (long)(cx * ((double)maxSize / cy));
+                    cy = maxSize;
+                }
+
                 var run = new W.Run();
 
                 var drawing = new W.Drawing(
                     new DW.Inline(
                         new DW.Extent() { Cx = cx, Cy = cy },
-                            new DW.EffectExtent()
-                            {
-                                LeftEdge = 0L,
-                                TopEdge = 0L,
-                                RightEdge = 100000L,
-                                BottomEdge = 0L
-                            },
+                        new DW.EffectExtent()
+                        {
+                            LeftEdge = 0L,
+                            TopEdge = 0L,
+                            RightEdge = 100000L,
+                            BottomEdge = 0L
+                        },
                         new DW.DocProperties()
                         {
                             Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks),
@@ -722,8 +741,8 @@ namespace WordGenerator.Api.Application.Services
                     )
                 );
 
-                run.AppendChild(drawing);
-                paragraph.AppendChild(run);
+                run.Append(drawing);
+                paragraph.Append(run);
             }
             catch (Exception ex)
             {
@@ -734,7 +753,7 @@ namespace WordGenerator.Api.Application.Services
                     ),
                     new W.Text($"[{imageDto.FileName ?? "لوگو"}]")
                 );
-                paragraph.AppendChild(run);
+                paragraph.Append(run);
             }
         }
         #endregion
@@ -1033,86 +1052,113 @@ namespace WordGenerator.Api.Application.Services
 
             try
             {
+                // 1. تبدیل Base64 به byte[]
                 var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+                if (imageBytes == null || imageBytes.Length == 0)
+                    return;
 
+                // 2. تشخیص نوع تصویر
                 var imagePartType = ImagePartType.Jpeg;
                 if (imageBytes.Length > 4)
                 {
-                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 &&
+                        imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+                    {
                         imagePartType = ImagePartType.Png;
+                    }
                     else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
+                    {
                         imagePartType = ImagePartType.Jpeg;
+                    }
                 }
 
+                // 3. اضافه کردن ImagePart به MainDocumentPart
                 var imagePart = mainPart.AddImagePart(imagePartType);
                 using (var stream = new MemoryStream(imageBytes))
                 {
                     imagePart.FeedData(stream);
                 }
-                var imagePartId = mainPart.GetIdOfPart(imagePart);
 
+                // 4. گرفتن Id
+                var imagePartId = mainPart.GetIdOfPart(imagePart);
+                if (string.IsNullOrEmpty(imagePartId))
+                    return;
+
+                // 5. محاسبه ابعاد
                 long cx = (long)(imageDto.Width * 9525);
                 long cy = (long)(imageDto.Height * 9525);
+
+                // اگر ارتفاع صفر باشه، نسبت ابعاد رو حفظ کن
+                if (cy == 0 && cx > 0)
+                {
+                    cy = cx;
+                }
+
+                // محدودیت اندازه
+                long maxSize = 800 * 9525;
+                if (cx > maxSize)
+                {
+                    cy = (long)(cy * ((double)maxSize / cx));
+                    cx = maxSize;
+                }
+                if (cy > maxSize)
+                {
+                    cx = (long)(cx * ((double)maxSize / cy));
+                    cy = maxSize;
+                }
 
                 if (cx < 1) cx = 9525;
                 if (cy < 1) cy = 9525;
 
+                // 6. ایجاد Run و Drawing
                 var run = new W.Run();
 
-                var drawing = new W.Drawing(
-                    new DW.Inline(
-                        new DW.Extent() { Cx = cx, Cy = cy },
-                        new DW.DocProperties()
-                        {
-                            Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks),
-                            Name = imageDto.FileName ?? "Image"
-                        },
-                        new DW.NonVisualGraphicFrameDrawingProperties(
-                            new D.GraphicFrameLocks() { NoChangeAspect = true }
-                        ),
-                        new D.Graphic(
-                            new D.GraphicData(
-                                new PIC.Picture(
-                                    new PIC.NonVisualPictureProperties(
-                                        new PIC.NonVisualDrawingProperties()
-                                        {
-                                            Id = (UInt32Value)0U,
-                                            Name = imageDto.FileName ?? "img.jpg"
-                                        },
-                                        new PIC.NonVisualPictureDrawingProperties()
+                // 7. ساختار Drawing - ساده‌تر و مطمئن‌تر
+                var drawing = new W.Drawing();
+
+                var inline = new DW.Inline(
+                    new DW.Extent() { Cx = cx, Cy = cy },
+                    new DW.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+                    new DW.DocProperties()
+                    {
+                        Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks),
+                        Name = imageDto.FileName ?? "Image"
+                    },
+                    new DW.NonVisualGraphicFrameDrawingProperties(
+                        new D.GraphicFrameLocks() { NoChangeAspect = true }
+                    ),
+                    new D.Graphic(
+                        new D.GraphicData(
+                            new PIC.Picture(
+                                new PIC.NonVisualPictureProperties(
+                                    new PIC.NonVisualDrawingProperties()
+                                    {
+                                        Id = (UInt32Value)0U,
+                                        Name = imageDto.FileName ?? "Image"
+                                    },
+                                    new PIC.NonVisualPictureDrawingProperties()
+                                ),
+                                new PIC.BlipFill(
+                                    new D.Blip() { Embed = imagePartId },
+                                    new D.Stretch(new D.FillRectangle())
+                                ),
+                                new PIC.ShapeProperties(
+                                    new D.Transform2D(
+                                        new D.Offset() { X = 0L, Y = 0L },
+                                        new D.Extents() { Cx = cx, Cy = cy }
                                     ),
-                                    new PIC.BlipFill(
-                                        new D.Blip()
-                                        {
-                                            Embed = imagePartId
-                                        },
-                                        new D.Stretch(
-                                            new D.FillRectangle()
-                                        )
-                                    ),
-                                    new PIC.ShapeProperties(
-                                        new D.Transform2D(
-                                            new D.Offset() { X = 0L, Y = 0L },
-                                            new D.Extents()
-                                            {
-                                                Cx = cx,
-                                                Cy = cy
-                                            }
-                                        ),
-                                        new D.PresetGeometry(
-                                            new D.AdjustValueList()
-                                        )
-                                        { Preset = D.ShapeTypeValues.Rectangle }
-                                    )
+                                    new D.PresetGeometry(new D.AdjustValueList())
+                                    { Preset = D.ShapeTypeValues.Rectangle }
                                 )
                             )
-                            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
                         )
+                        { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
                     )
                 );
 
-                run.AppendChild(drawing);
-                paragraph.AppendChild(run);
+                drawing.Append(inline);
+                run.Append(drawing);
+                paragraph.Append(run);
             }
             catch (Exception ex)
             {
@@ -1121,9 +1167,9 @@ namespace WordGenerator.Api.Application.Services
                         new W.FontSize { Val = "24" },
                         new W.Color { Val = "FF0000" }
                     ),
-                    new W.Text($"[خطا در بارگذاری تصویر: {imageDto.FileName}]")
+                    new W.Text($"[خطا: {imageDto.FileName}]")
                 );
-                paragraph.AppendChild(run);
+                paragraph.Append(run);
             }
         }
 
@@ -1837,7 +1883,7 @@ namespace WordGenerator.Api.Application.Services
                 return true;
 
             if (c >= '0' && c <= '9')
-                return true;
+                return false;
 
             return c == '[' || c == ']' || c == '{' || c == '}' ||
                    c == '.' || c == ',' || c == ';' || c == ':' || c == '!' || c == '?' ||
