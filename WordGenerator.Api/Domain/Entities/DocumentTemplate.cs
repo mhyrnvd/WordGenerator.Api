@@ -3,7 +3,6 @@
     public class DocumentTemplate
     {
         public long Id { get; set; }
-
         public string Name { get; set; } = null!;
 
         public CoverPageTemplate? CoverPage { get; set; }
@@ -14,5 +13,10 @@
 
         // بخش‌های جدید سلسله‌مراتبی
         public ICollection<MasterSection> MasterSections { get; set; } = new List<MasterSection>();
+
+        // ===== بخش‌های جدید انتهای سند =====
+        public virtual AttachmentSection? AttachmentSection { get; set; }
+        public virtual ReferenceSection? ReferenceSection { get; set; }
+        public virtual DocumentSection? DocumentSection { get; set; }
     }
 }

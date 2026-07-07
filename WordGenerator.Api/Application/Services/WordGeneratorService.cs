@@ -113,6 +113,26 @@ namespace WordGenerator.Api.Application.Services
                     }
                 }
 
+                // ===== بخش‌های انتهای سند =====
+
+                // الف) پیوست‌ها
+                if (document.Attachments != null && document.Attachments.IsActive)
+                {
+                    RenderAttachmentsSection(body, document.Attachments, mainPart);
+                }
+
+                // ب) منابع (انگلیسی - چپ‌چین)
+                if (document.References != null && document.References.IsActive)
+                {
+                    RenderReferencesSection(body, document.References, mainPart);
+                }
+
+                // پ) مدارک
+                if (document.Documents != null && document.Documents.IsActive)
+                {
+                    RenderDocumentsSection(body, document.Documents, mainPart);
+                }
+
                 mainPart.Document.Append(body);
                 mainPart.Document.Save();
             }
@@ -197,6 +217,58 @@ namespace WordGenerator.Api.Application.Services
                     .ThenInclude(s => s.Elements)
                         .ThenInclude(e => e.BulletList)
                             .ThenInclude(b => b.Items)
+                // ===== Include بخش‌های جدید =====
+                .Include(x => x.AttachmentSection)
+                    .ThenInclude(a => a.Elements)
+                        .ThenInclude(e => e.Image)
+                .Include(x => x.AttachmentSection)
+                    .ThenInclude(a => a.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
+                .Include(x => x.AttachmentSection)
+                    .ThenInclude(a => a.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
+                .Include(x => x.AttachmentSection)
+                    .ThenInclude(a => a.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
+                .Include(x => x.ReferenceSection)
+                    .ThenInclude(r => r.Elements)
+                        .ThenInclude(e => e.Image)
+                .Include(x => x.ReferenceSection)
+                    .ThenInclude(r => r.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
+                .Include(x => x.ReferenceSection)
+                    .ThenInclude(r => r.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
+                .Include(x => x.ReferenceSection)
+                    .ThenInclude(r => r.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
+                .Include(x => x.DocumentSection)
+                    .ThenInclude(d => d.Elements)
+                        .ThenInclude(e => e.Image)
+                .Include(x => x.DocumentSection)
+                    .ThenInclude(d => d.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
+                .Include(x => x.DocumentSection)
+                    .ThenInclude(d => d.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
+                .Include(x => x.DocumentSection)
+                    .ThenInclude(d => d.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
                 .FirstAsync(x => x.Id == request.TemplateId);
 
             var selectedMasterSections = template.MasterSections
@@ -277,6 +349,26 @@ namespace WordGenerator.Api.Application.Services
                     }
                 }
 
+                // ===== بخش‌های انتهای سند =====
+
+                // الف) پیوست‌ها
+                if (template.AttachmentSection != null && template.AttachmentSection.IsActive)
+                {
+                    RenderAttachmentsSectionFromEntity(body, template.AttachmentSection, mainPart);
+                }
+
+                // ب) منابع (انگلیسی - چپ‌چین)
+                if (template.ReferenceSection != null && template.ReferenceSection.IsActive)
+                {
+                    RenderReferencesSectionFromEntity(body, template.ReferenceSection, mainPart);
+                }
+
+                // پ) مدارک
+                if (template.DocumentSection != null && template.DocumentSection.IsActive)
+                {
+                    RenderDocumentsSectionFromEntity(body, template.DocumentSection, mainPart);
+                }
+
                 mainPart.Document.Append(body);
                 mainPart.Document.Save();
             }
@@ -355,6 +447,26 @@ namespace WordGenerator.Api.Application.Services
                     {
                         RenderElement(body, element, mainPart);
                     }
+                }
+
+                // ========== بخش‌های انتهای سند ==========
+
+                // الف) پیوست‌ها
+                if (request.Attachments != null && request.Attachments.IsActive)
+                {
+                    RenderAttachmentsSection(body, request.Attachments, mainPart);
+                }
+
+                // ب) منابع (انگلیسی - چپ‌چین)
+                if (request.References != null && request.References.IsActive)
+                {
+                    RenderReferencesSection(body, request.References, mainPart);
+                }
+
+                // پ) مدارک
+                if (request.Documents != null && request.Documents.IsActive)
+                {
+                    RenderDocumentsSection(body, request.Documents, mainPart);
                 }
 
                 mainPart.Document.Append(body);
@@ -638,11 +750,15 @@ namespace WordGenerator.Api.Application.Services
             try
             {
                 var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+                if (imageBytes == null || imageBytes.Length == 0)
+                    return;
 
+                // تشخیص نوع تصویر
                 var imagePartType = ImagePartType.Jpeg;
                 if (imageBytes.Length > 4)
                 {
-                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 &&
+                        imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
                         imagePartType = ImagePartType.Png;
                     else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
                         imagePartType = ImagePartType.Jpeg;
@@ -654,6 +770,8 @@ namespace WordGenerator.Api.Application.Services
                     imagePart.FeedData(stream);
                 }
                 var imagePartId = headerPart.GetIdOfPart(imagePart);
+                if (string.IsNullOrEmpty(imagePartId))
+                    return;
 
                 long cx = (long)(imageDto.Width * 9525);
                 long cy = (long)(imageDto.Height * 9525);
@@ -661,18 +779,31 @@ namespace WordGenerator.Api.Application.Services
                 if (cx < 1) cx = 9525;
                 if (cy < 1) cy = 9525;
 
+                // محدودیت اندازه
+                long maxSize = 200 * 9525;
+                if (cx > maxSize)
+                {
+                    cy = (long)(cy * ((double)maxSize / cx));
+                    cx = maxSize;
+                }
+                if (cy > maxSize)
+                {
+                    cx = (long)(cx * ((double)maxSize / cy));
+                    cy = maxSize;
+                }
+
                 var run = new W.Run();
 
                 var drawing = new W.Drawing(
                     new DW.Inline(
                         new DW.Extent() { Cx = cx, Cy = cy },
-                            new DW.EffectExtent()
-                            {
-                                LeftEdge = 0L,
-                                TopEdge = 0L,
-                                RightEdge = 100000L,
-                                BottomEdge = 0L
-                            },
+                        new DW.EffectExtent()
+                        {
+                            LeftEdge = 0L,
+                            TopEdge = 0L,
+                            RightEdge = 100000L,
+                            BottomEdge = 0L
+                        },
                         new DW.DocProperties()
                         {
                             Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks),
@@ -722,8 +853,8 @@ namespace WordGenerator.Api.Application.Services
                     )
                 );
 
-                run.AppendChild(drawing);
-                paragraph.AppendChild(run);
+                run.Append(drawing);
+                paragraph.Append(run);
             }
             catch (Exception ex)
             {
@@ -734,7 +865,7 @@ namespace WordGenerator.Api.Application.Services
                     ),
                     new W.Text($"[{imageDto.FileName ?? "لوگو"}]")
                 );
-                paragraph.AppendChild(run);
+                paragraph.Append(run);
             }
         }
         #endregion
@@ -834,6 +965,475 @@ namespace WordGenerator.Api.Application.Services
 
         #endregion
 
+        #region Final Sections (Attachments, References, Documents)
+
+        /// <summary>
+        /// ایجاد بخش پیوست‌ها - راست‌چین
+        /// </summary>
+        private void RenderAttachmentsSection(W.Body body, AttachmentSectionDto attachments, MainDocumentPart mainPart)
+        {
+            if (attachments == null || !attachments.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts
+                        {
+                            Ascii = PersianFont,
+                            HighAnsi = PersianFont,
+                            ComplexScript = PersianFont
+                        },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(attachments.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            foreach (var element in attachments.Elements.OrderBy(x => x.Order))
+            {
+                RenderElement(body, element, mainPart);
+            }
+        }
+
+        private void RenderAttachmentsSectionFromEntity(W.Body body, AttachmentSection attachments, MainDocumentPart mainPart)
+        {
+            if (attachments == null || !attachments.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts
+                        {
+                            Ascii = PersianFont,
+                            HighAnsi = PersianFont,
+                            ComplexScript = PersianFont
+                        },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(attachments.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            foreach (var element in attachments.Elements.OrderBy(x => x.Order))
+            {
+                RenderElementFromEntity(body, element, mainPart);
+            }
+        }
+
+        /// <summary>
+        /// ایجاد بخش منابع - چپ‌چین و انگلیسی برای محتوا، راست‌چین برای عنوان
+        /// </summary>
+        private void RenderReferencesSection(W.Body body, ReferenceSectionDto references, MainDocumentPart mainPart)
+        {
+            if (references == null || !references.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts
+                        {
+                            Ascii = PersianFont,
+                            HighAnsi = PersianFont,
+                            ComplexScript = PersianFont
+                        },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(references.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            foreach (var element in references.Elements.OrderBy(x => x.Order))
+            {
+                RenderElementWithLeftAlignment(body, element, mainPart);
+            }
+        }
+
+        private void RenderReferencesSectionFromEntity(W.Body body, ReferenceSection references, MainDocumentPart mainPart)
+        {
+            if (references == null || !references.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts
+                        {
+                            Ascii = PersianFont,
+                            HighAnsi = PersianFont,
+                            ComplexScript = PersianFont
+                        },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(references.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            foreach (var element in references.Elements.OrderBy(x => x.Order))
+            {
+                var elementDto = MapContentElementToDto(element);
+                RenderElementWithLeftAlignment(body, elementDto, mainPart);
+            }
+        }
+
+        /// <summary>
+        /// رندر المان با چپ‌چین (برای بخش منابع)
+        /// </summary>
+        private void RenderElementWithLeftAlignment(W.Body body, ContentElementDto element, MainDocumentPart mainPart)
+        {
+            switch (element.Type?.ToLower())
+            {
+                case "paragraph":
+                    if (!string.IsNullOrEmpty(element.Text))
+                        body.Append(CreateLeftAlignedParagraph(element.Text));
+                    break;
+
+                case "bulletlist":
+                    if (element.BulletList != null)
+                    {
+                        var bulletParagraphs = CreateLeftAlignedBulletList(element.BulletList);
+                        foreach (var paragraph in bulletParagraphs)
+                        {
+                            body.Append(paragraph);
+                        }
+                    }
+                    break;
+
+                case "table":
+                    if (element.Table != null)
+                    {
+                        body.Append(CreateLeftAlignedTableFromDto(element.Table));
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                    }
+                    break;
+
+                case "image":
+                    if (element.Image != null)
+                    {
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Left },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, element.Image, mainPart);
+                        body.Append(imageParagraph);
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// ایجاد پاراگراف چپ‌چین برای منابع انگلیسی
+        /// </summary>
+        private W.Paragraph CreateLeftAlignedParagraph(string text)
+        {
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.Indentation() { FirstLine = "397" },
+                    new W.SpacingBetweenLines()
+                    {
+                        Line = "360",
+                        LineRule = W.LineSpacingRuleValues.Auto
+                    }
+                )
+            );
+
+            var run = new W.Run(
+                new W.RunProperties(
+                    new W.RunFonts()
+                    {
+                        Ascii = EnglishFont,
+                        HighAnsi = EnglishFont,
+                        ComplexScript = EnglishFont
+                    },
+                    new W.FontSize() { Val = EnglishFontSize }
+                ),
+                new W.Text(text)
+            );
+            paragraph.Append(run);
+
+            return paragraph;
+        }
+
+        /// <summary>
+        /// ایجاد Bullet List چپ‌چین برای منابع انگلیسی
+        /// </summary>
+        private W.Paragraph[] CreateLeftAlignedBulletList(BulletListDto bulletList)
+        {
+            if (bulletList == null || bulletList.Items == null || !bulletList.Items.Any())
+                return new W.Paragraph[0];
+
+            var paragraphs = new List<W.Paragraph>();
+
+            if (!string.IsNullOrEmpty(bulletList.Title))
+            {
+                var titleParagraph = new W.Paragraph(
+                    new W.ParagraphProperties(
+                        new W.Justification() { Val = W.JustificationValues.Left },
+                        new W.SpacingBetweenLines { After = "120" }
+                    ),
+                    new W.Run(
+                        new W.RunProperties(
+                            new W.RunFonts
+                            {
+                                Ascii = EnglishFont,
+                                HighAnsi = EnglishFont,
+                                ComplexScript = EnglishFont
+                            },
+                            new W.FontSize { Val = "28" },
+                            new W.Bold()
+                        ),
+                        new W.Text(bulletList.Title)
+                    )
+                );
+                paragraphs.Add(titleParagraph);
+            }
+
+            foreach (var item in bulletList.Items.OrderBy(x => x.Order))
+            {
+                var paragraph = CreateLeftAlignedBulletListParagraph(item.Text, item.Level);
+                paragraphs.Add(paragraph);
+            }
+
+            var spacingParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.SpacingBetweenLines { After = "200" }
+                )
+            );
+            paragraphs.Add(spacingParagraph);
+
+            return paragraphs.ToArray();
+        }
+
+        /// <summary>
+        /// ایجاد Bullet List Paragraph چپ‌چین
+        /// </summary>
+        private W.Paragraph CreateLeftAlignedBulletListParagraph(string text, int level = 0)
+        {
+            int safeLevel = Math.Clamp(level, 0, 2);
+
+            var numberingProps = new W.NumberingProperties();
+            var numberingLevelRef = new W.NumberingLevelReference() { Val = safeLevel };
+            var numberingId = new W.NumberingId() { Val = 1 };
+            numberingProps.Append(numberingLevelRef);
+            numberingProps.Append(numberingId);
+
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    numberingProps,
+                    new W.Indentation()
+                    {
+                        FirstLine = "397",
+                        Left = (safeLevel * 720).ToString()
+                    },
+                    new W.SpacingBetweenLines()
+                    {
+                        Line = "360",
+                        LineRule = W.LineSpacingRuleValues.Auto,
+                        After = "0"
+                    }
+                )
+            );
+
+            var run = new W.Run(
+                new W.RunProperties(
+                    new W.RunFonts()
+                    {
+                        Ascii = EnglishFont,
+                        HighAnsi = EnglishFont,
+                        ComplexScript = EnglishFont
+                    },
+                    new W.FontSize() { Val = EnglishFontSize }
+                ),
+                new W.Text(text)
+            );
+            paragraph.Append(run);
+
+            return paragraph;
+        }
+
+        /// <summary>
+        /// ایجاد جدول چپ‌چین برای منابع انگلیسی
+        /// </summary>
+        private W.Table CreateLeftAlignedTableFromDto(TableDataDto tableData)
+        {
+            var table = CreateTableFromDto(tableData);
+
+            var tableProps = table.GetFirstChild<W.TableProperties>();
+            if (tableProps != null)
+            {
+                var justification = tableProps.GetFirstChild<W.Justification>();
+                if (justification != null)
+                {
+                    justification.Val = W.JustificationValues.Left;
+                }
+                else
+                {
+                    tableProps.Append(new W.Justification { Val = W.JustificationValues.Left });
+                }
+            }
+
+            foreach (var row in table.Descendants<W.TableRow>())
+            {
+                foreach (var cell in row.Descendants<W.TableCell>())
+                {
+                    var para = cell.GetFirstChild<W.Paragraph>();
+                    if (para != null)
+                    {
+                        var paraProps = para.GetFirstChild<W.ParagraphProperties>();
+                        if (paraProps != null)
+                        {
+                            var justification = paraProps.GetFirstChild<W.Justification>();
+                            if (justification != null)
+                            {
+                                justification.Val = W.JustificationValues.Left;
+                            }
+                            else
+                            {
+                                paraProps.Append(new W.Justification { Val = W.JustificationValues.Left });
+                            }
+
+                            var bidi = paraProps.GetFirstChild<W.BiDi>();
+                            if (bidi != null)
+                                bidi.Remove();
+                        }
+                    }
+                }
+            }
+
+            return table;
+        }
+
+        /// <summary>
+        /// ایجاد بخش مدارک - راست‌چین
+        /// </summary>
+        private void RenderDocumentsSection(W.Body body, DocumentSectionDto documents, MainDocumentPart mainPart)
+        {
+            if (documents == null || !documents.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts
+                        {
+                            Ascii = PersianFont,
+                            HighAnsi = PersianFont,
+                            ComplexScript = PersianFont
+                        },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(documents.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            foreach (var element in documents.Elements.OrderBy(x => x.Order))
+            {
+                RenderElement(body, element, mainPart);
+            }
+        }
+
+        private void RenderDocumentsSectionFromEntity(W.Body body, DocumentSection documents, MainDocumentPart mainPart)
+        {
+            if (documents == null || !documents.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts
+                        {
+                            Ascii = PersianFont,
+                            HighAnsi = PersianFont,
+                            ComplexScript = PersianFont
+                        },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(documents.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            foreach (var element in documents.Elements.OrderBy(x => x.Order))
+            {
+                RenderElementFromEntity(body, element, mainPart);
+            }
+        }
+
+        private ContentElementDto MapContentElementToDto(ContentElement element)
+        {
+            return new ContentElementDto
+            {
+                Id = element.Id,
+                Type = element.Type.ToString().ToLower(),
+                Order = element.Order,
+                Text = element.ParagraphText,
+                Image = element.Image != null ? MapImageToDto(element.Image) : null,
+                Table = element.Table != null ? MapTableToDto(element.Table) : null,
+                BulletList = element.BulletList != null ? MapBulletListToDto(element.BulletList) : null
+            };
+        }
+
+        #endregion
+
         #region Bullet List Methods
 
         private BulletListDto MapBulletListToDto(BulletList bulletList)
@@ -862,7 +1462,6 @@ namespace WordGenerator.Api.Application.Services
 
             var paragraphs = new List<W.Paragraph>();
 
-            // اگر عنوان داشته باشد
             if (!string.IsNullOrEmpty(bulletList.Title))
             {
                 var titleParagraph = new W.Paragraph(
@@ -888,14 +1487,12 @@ namespace WordGenerator.Api.Application.Services
                 paragraphs.Add(titleParagraph);
             }
 
-            // آیتم‌های لیست با Bullet استاندارد ورد
             foreach (var item in bulletList.Items.OrderBy(x => x.Order))
             {
                 var paragraph = CreateBulletListParagraph(item.Text, item.Level);
                 paragraphs.Add(paragraph);
             }
 
-            // فاصله بعد از لیست
             var spacingParagraph = new W.Paragraph(
                 new W.ParagraphProperties(
                     new W.SpacingBetweenLines { After = "200" }
@@ -908,7 +1505,6 @@ namespace WordGenerator.Api.Application.Services
 
         private W.Paragraph CreateBulletListParagraph(string text, int level = 0)
         {
-            // محدود کردن level به 0-2
             int safeLevel = Math.Clamp(level, 0, 2);
 
             var numberingProps = new W.NumberingProperties();
@@ -937,7 +1533,6 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
-            // متن اصلی با پشتیبانی از RTL
             var textRuns = CreateRunsForBulletText(text);
             foreach (var run in textRuns)
             {
@@ -1034,14 +1629,21 @@ namespace WordGenerator.Api.Application.Services
             try
             {
                 var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+                if (imageBytes == null || imageBytes.Length == 0)
+                    return;
 
                 var imagePartType = ImagePartType.Jpeg;
                 if (imageBytes.Length > 4)
                 {
-                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 &&
+                        imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+                    {
                         imagePartType = ImagePartType.Png;
+                    }
                     else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
+                    {
                         imagePartType = ImagePartType.Jpeg;
+                    }
                 }
 
                 var imagePart = mainPart.AddImagePart(imagePartType);
@@ -1049,70 +1651,81 @@ namespace WordGenerator.Api.Application.Services
                 {
                     imagePart.FeedData(stream);
                 }
+
                 var imagePartId = mainPart.GetIdOfPart(imagePart);
+                if (string.IsNullOrEmpty(imagePartId))
+                    return;
 
                 long cx = (long)(imageDto.Width * 9525);
                 long cy = (long)(imageDto.Height * 9525);
+
+                if (cy == 0 && cx > 0)
+                {
+                    cy = cx;
+                }
+
+                long maxSize = 800 * 9525;
+                if (cx > maxSize)
+                {
+                    cy = (long)(cy * ((double)maxSize / cx));
+                    cx = maxSize;
+                }
+                if (cy > maxSize)
+                {
+                    cx = (long)(cx * ((double)maxSize / cy));
+                    cy = maxSize;
+                }
 
                 if (cx < 1) cx = 9525;
                 if (cy < 1) cy = 9525;
 
                 var run = new W.Run();
 
-                var drawing = new W.Drawing(
-                    new DW.Inline(
-                        new DW.Extent() { Cx = cx, Cy = cy },
-                        new DW.DocProperties()
-                        {
-                            Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks),
-                            Name = imageDto.FileName ?? "Image"
-                        },
-                        new DW.NonVisualGraphicFrameDrawingProperties(
-                            new D.GraphicFrameLocks() { NoChangeAspect = true }
-                        ),
-                        new D.Graphic(
-                            new D.GraphicData(
-                                new PIC.Picture(
-                                    new PIC.NonVisualPictureProperties(
-                                        new PIC.NonVisualDrawingProperties()
-                                        {
-                                            Id = (UInt32Value)0U,
-                                            Name = imageDto.FileName ?? "img.jpg"
-                                        },
-                                        new PIC.NonVisualPictureDrawingProperties()
+                var drawing = new W.Drawing();
+
+                var inline = new DW.Inline(
+                    new DW.Extent() { Cx = cx, Cy = cy },
+                    new DW.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+                    new DW.DocProperties()
+                    {
+                        Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks),
+                        Name = imageDto.FileName ?? "Image"
+                    },
+                    new DW.NonVisualGraphicFrameDrawingProperties(
+                        new D.GraphicFrameLocks() { NoChangeAspect = true }
+                    ),
+                    new D.Graphic(
+                        new D.GraphicData(
+                            new PIC.Picture(
+                                new PIC.NonVisualPictureProperties(
+                                    new PIC.NonVisualDrawingProperties()
+                                    {
+                                        Id = (UInt32Value)0U,
+                                        Name = imageDto.FileName ?? "Image"
+                                    },
+                                    new PIC.NonVisualPictureDrawingProperties()
+                                ),
+                                new PIC.BlipFill(
+                                    new D.Blip() { Embed = imagePartId },
+                                    new D.Stretch(new D.FillRectangle())
+                                ),
+                                new PIC.ShapeProperties(
+                                    new D.Transform2D(
+                                        new D.Offset() { X = 0L, Y = 0L },
+                                        new D.Extents() { Cx = cx, Cy = cy }
                                     ),
-                                    new PIC.BlipFill(
-                                        new D.Blip()
-                                        {
-                                            Embed = imagePartId
-                                        },
-                                        new D.Stretch(
-                                            new D.FillRectangle()
-                                        )
-                                    ),
-                                    new PIC.ShapeProperties(
-                                        new D.Transform2D(
-                                            new D.Offset() { X = 0L, Y = 0L },
-                                            new D.Extents()
-                                            {
-                                                Cx = cx,
-                                                Cy = cy
-                                            }
-                                        ),
-                                        new D.PresetGeometry(
-                                            new D.AdjustValueList()
-                                        )
-                                        { Preset = D.ShapeTypeValues.Rectangle }
-                                    )
+                                    new D.PresetGeometry(new D.AdjustValueList())
+                                    { Preset = D.ShapeTypeValues.Rectangle }
                                 )
                             )
-                            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
                         )
+                        { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
                     )
                 );
 
-                run.AppendChild(drawing);
-                paragraph.AppendChild(run);
+                drawing.Append(inline);
+                run.Append(drawing);
+                paragraph.Append(run);
             }
             catch (Exception ex)
             {
@@ -1121,9 +1734,9 @@ namespace WordGenerator.Api.Application.Services
                         new W.FontSize { Val = "24" },
                         new W.Color { Val = "FF0000" }
                     ),
-                    new W.Text($"[خطا در بارگذاری تصویر: {imageDto.FileName}]")
+                    new W.Text($"[خطا: {imageDto.FileName}]")
                 );
-                paragraph.AppendChild(run);
+                paragraph.Append(run);
             }
         }
 
@@ -1520,7 +2133,7 @@ namespace WordGenerator.Api.Application.Services
 
             var paragraph = new W.Paragraph(
                 new W.ParagraphProperties(
-                    new W.Justification { Val = W.JustificationValues.Right },
+                    new W.Justification { Val = W.JustificationValues.Left },
                     new W.BiDi(),
                     new W.SpacingBetweenLines { After = "0" }
                 )
@@ -1796,7 +2409,7 @@ namespace WordGenerator.Api.Application.Services
 
             var heading2ParaProps = new W.StyleParagraphProperties(
                 new W.ParagraphStyleId { Val = "Heading2" },
-                new W.Justification { Val = W.JustificationValues.Right },
+                new W.Justification { Val = W.JustificationValues.Left },
                 new W.SpacingBetweenLines { After = "120", Line = "240" },
                 new W.OutlineLevel { Val = 1 }
             );
@@ -1837,7 +2450,7 @@ namespace WordGenerator.Api.Application.Services
                 return true;
 
             if (c >= '0' && c <= '9')
-                return true;
+                return false;
 
             return c == '[' || c == ']' || c == '{' || c == '}' ||
                    c == '.' || c == ',' || c == ';' || c == ':' || c == '!' || c == '?' ||

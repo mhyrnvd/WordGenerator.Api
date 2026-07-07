@@ -1,6 +1,7 @@
 ﻿// WordGenerator.Api.Infra.Configurations/DocumentTemplateConfiguration.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System.Reflection.Emit;
 using WordGenerator.Api.Domain.Entities;
 
 namespace WordGenerator.Api.Infra.Configurations
@@ -33,6 +34,24 @@ namespace WordGenerator.Api.Infra.Configurations
             builder.HasMany(x => x.Sections)
                 .WithOne(x => x.Template)
                 .HasForeignKey(x => x.TemplateId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // رابطه با AttachmentSection
+            builder.HasOne(x => x.AttachmentSection)
+                .WithOne(x => x.DocumentTemplate)
+                .HasForeignKey<AttachmentSection>(x => x.DocumentTemplateId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // رابطه با ReferenceSection
+            builder.HasOne(x => x.ReferenceSection)
+                .WithOne(x => x.DocumentTemplate)
+                .HasForeignKey<ReferenceSection>(x => x.DocumentTemplateId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // رابطه با DocumentSection
+            builder.HasOne(x => x.DocumentSection)
+                .WithOne(x => x.DocumentTemplate)
+                .HasForeignKey<DocumentSection>(x => x.DocumentTemplateId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // ایندکس‌ها

@@ -7,5 +7,10 @@
         public PageHeaderDto? PageHeader { get; set; }
         public List<CreateMasterSectionDto> MasterSections { get; set; } = new();
         public List<CreateTemplateSectionDto> Sections { get; set; } = new();
+
+        // ===== بخش‌های جدید انتهای سند =====
+        public AttachmentSectionDto? AttachmentSection { get; set; }
+        public ReferenceSectionDto? ReferenceSection { get; set; }
+        public DocumentSectionDto? DocumentSection { get; set; }
     }
 }

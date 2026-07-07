@@ -8,6 +8,9 @@ namespace WordGenerator.Api.Application.DTOs
         public List<MasterSectionDataDto> MasterSections { get; set; } = new();
         public List<SectionDataDto> Sections { get; set; } = new();
         public PageHeaderDto? PageHeader { get; set; }
+        public AttachmentSectionDto? Attachments { get; set; }      // الف) پیوست‌ها
+        public ReferenceSectionDto? References { get; set; }        // ب) References (انگلیسی - چپ‌چین)
+        public DocumentSectionDto? Documents { get; set; }          // پ) مدارک
     }
 
     /// <summary>
@@ -84,6 +87,10 @@ namespace WordGenerator.Api.Application.DTOs
         public int Width { get; set; }
         public int Order { get; set; }
         public bool IsRowNumberColumn { get; set; }  // optional
+
+        public AttachmentSectionDto? Attachments { get; set; }      // الف) پیوست‌ها
+        public ReferenceSectionDto? References { get; set; }        // ب) References (انگلیسی - چپ‌چین)
+        public DocumentSectionDto? Documents { get; set; }          // پ) مدارک
     }
 
     public class RowDataDto

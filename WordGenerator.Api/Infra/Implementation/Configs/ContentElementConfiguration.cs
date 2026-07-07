@@ -66,6 +66,27 @@ namespace WordGenerator.Api.Infra.Configurations
                 .OnDelete(DeleteBehavior.Restrict)
                 .IsRequired(false);
 
+            // رابطه با AttachmentSection - Restrict
+            builder.HasOne(x => x.AttachmentSection)
+                .WithMany(x => x.Elements)
+                .HasForeignKey(x => x.AttachmentSectionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
+            // رابطه با ReferenceSection - Restrict
+            builder.HasOne(x => x.ReferenceSection)
+                .WithMany(x => x.Elements)
+                .HasForeignKey(x => x.ReferenceSectionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
+            // رابطه با DocumentSection - Restrict
+            builder.HasOne(x => x.DocumentSection)
+                .WithMany(x => x.Elements)
+                .HasForeignKey(x => x.DocumentSectionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
             // ایندکس‌ها
             builder.HasIndex(x => x.Order);
             builder.HasIndex(x => x.MasterSectionId);
