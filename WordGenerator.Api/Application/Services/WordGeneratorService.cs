@@ -107,6 +107,8 @@ namespace WordGenerator.Api.Application.Services
 
                     body.Append(CreateMasterHeading(masterSection.Title, sectionNumber));
 
+                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
                     foreach (var element in masterSection.Elements.OrderBy(x => x.Order))
                     {
                         RenderElement(body, element, mainPart, ref tableCounterInSection, ref imageCounterInSection, sectionNumber);
@@ -447,7 +449,7 @@ namespace WordGenerator.Api.Application.Services
                     {
                         RenderElement(body, element, mainPart, ref dummy1, ref dummy2, "0");
                     }
-                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+                    //body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
                 }
 
                 // ===== پیش‌گفتار =====
@@ -490,7 +492,11 @@ namespace WordGenerator.Api.Application.Services
                     int tableCounterInSection = 0;
                     int imageCounterInSection = 0;
 
+                    //body.Append(new W.Paragraph(new W.Run(new W.Break())));
+
                     body.Append(CreateMasterHeading(masterSection.Title, sectionNumber));
+
+                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
 
                     foreach (var element in masterSection.Elements.OrderBy(x => x.Order))
                     {
@@ -556,6 +562,15 @@ namespace WordGenerator.Api.Application.Services
             return ms.ToArray();
         }
         #endregion
+
+        private void AddEmptyLines(W.Body body, int count = 3)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                body.Append(new W.Paragraph());
+            }
+        }
+
 
         #region Initialize Numbering for Bullet Lists
 
@@ -650,8 +665,11 @@ namespace WordGenerator.Api.Application.Services
             table.Append(tableProps);
 
             var row = new W.TableRow();
-            row.Append(new W.TableRowProperties(new W.TableRowHeight { Val = 500, HeightType = W.HeightRuleValues.AtLeast }));
+            row.Append(new W.TableRowProperties(
+                new W.TableRowHeight { Val = 500, HeightType = W.HeightRuleValues.AtLeast }
+            ));
 
+            // ===== ستون چپ (لوگوها) =====
             var leftCell = new W.TableCell();
             var leftCellProps = new W.TableCellProperties(
                 new W.TableCellWidth { Type = W.TableWidthUnitValues.Pct, Width = "50" },
@@ -669,30 +687,12 @@ namespace WordGenerator.Api.Application.Services
 
             var logos = pageHeader.Logos?.OrderBy(x => x.Order).ToList() ?? new List<HeaderLogoDto>();
 
-            if (logos.Any())
+            // ===== اضافه کردن لوگوها با فاصله =====
+            for (int i = 0; i < logos.Count; i++)
             {
-                var firstLogo = logos[0];
-                var firstImageDto = new ImageItemDto
-                {
-                    FileName = firstLogo.FileName,
-                    Width = firstLogo.Width > 0 ? firstLogo.Width : 60,
-                    Height = firstLogo.Height > 0 ? firstLogo.Height : 40,
-                    ImageBase64 = firstLogo.ImageBase64
-                };
-                InsertImageToHeader(leftParagraph, firstImageDto, mainPart, headerPart);
-            }
-
-            for (int i = 1; i < logos.Count; i++)
-            {
-                var spaceRun = new W.Run();
-                var spaceRunProps = new W.RunProperties();
-                spaceRun.AppendChild(spaceRunProps);
-                var spaceText = new W.Text("     ");
-                spaceText.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
-                spaceRun.AppendChild(spaceText);
-                leftParagraph.AppendChild(spaceRun);
-
                 var logo = logos[i];
+
+                // ===== اضافه کردن لوگو =====
                 var imageDto = new ImageItemDto
                 {
                     FileName = logo.FileName,
@@ -701,11 +701,27 @@ namespace WordGenerator.Api.Application.Services
                     ImageBase64 = logo.ImageBase64
                 };
                 InsertImageToHeader(leftParagraph, imageDto, mainPart, headerPart);
+
+                // ===== اگر آخرین لوگو نیست، فاصله اضافه کن =====
+                if (i < logos.Count - 1)
+                {
+                    // ===== اضافه کردن فاصله بین لوگوها =====
+                    var spaceRun = new W.Run();
+                    var spaceRunProps = new W.RunProperties();
+                    spaceRun.AppendChild(spaceRunProps);
+
+                    // ۵ فاصله (یا میتونی بیشتر/کمتر کنی)
+                    var spaceText = new W.Text("     ");
+                    spaceText.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
+                    spaceRun.AppendChild(spaceText);
+                    leftParagraph.AppendChild(spaceRun);
+                }
             }
 
             leftCell.Append(leftParagraph);
             row.Append(leftCell);
 
+            // ===== ستون راست (متن هدر) =====
             var rightCell = new W.TableCell();
             var rightCellProps = new W.TableCellProperties(
                 new W.TableCellWidth { Type = W.TableWidthUnitValues.Pct, Width = "50" },
@@ -765,7 +781,6 @@ namespace WordGenerator.Api.Application.Services
 
             sectionProperties.PrependChild(headerReference);
         }
-
         private void InsertImageToHeader(W.Paragraph paragraph, ImageItemDto imageDto, MainDocumentPart mainPart, HeaderPart headerPart)
         {
             if (string.IsNullOrEmpty(imageDto.ImageBase64))
@@ -773,19 +788,45 @@ namespace WordGenerator.Api.Application.Services
 
             try
             {
-                var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
-                if (imageBytes == null || imageBytes.Length == 0)
-                    return;
+                Console.WriteLine($"=== Inserting Header Image: {imageDto.FileName} ===");
+                Console.WriteLine($"Base64 Length: {imageDto.ImageBase64?.Length ?? 0}");
 
-                var imagePartType = ImagePartType.Jpeg;
-                if (imageBytes.Length > 4)
+                var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+                Console.WriteLine($"Image Bytes Length: {imageBytes.Length}");
+
+                if (imageBytes == null || imageBytes.Length == 0)
                 {
-                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 &&
-                        imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
-                        imagePartType = ImagePartType.Png;
-                    else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
-                        imagePartType = ImagePartType.Jpeg;
+                    Console.WriteLine("ERROR: Image bytes is null or empty");
+                    return;
                 }
+
+                // بررسی اینکه تصویر قابل باز شدنه
+                try
+                {
+                    using (var ms = new MemoryStream(imageBytes))
+                    {
+                        using (var img = System.Drawing.Image.FromStream(ms))
+                        {
+                            Console.WriteLine($"Image loaded successfully: {img.Width}x{img.Height}");
+                        }
+                    }
+                }
+                catch (Exception imgEx)
+                {
+                    Console.WriteLine($"ERROR: Image is corrupted - {imgEx.Message}");
+                    var errorRun = new W.Run(
+                        new W.RunProperties(
+                            new W.FontSize { Val = "16" },
+                            new W.Color { Val = "FF6600" }
+                        ),
+                        new W.Text($"[تصویر خراب: {imageDto.FileName}]")
+                    );
+                    paragraph.AppendChild(errorRun);
+                    return;
+                }
+
+                var imagePartType = DetectImagePartType(imageBytes);
+                Console.WriteLine($"Image Type: {imagePartType}");
 
                 var imagePart = headerPart.AddImagePart(imagePartType);
                 using (var stream = new MemoryStream(imageBytes))
@@ -793,14 +834,41 @@ namespace WordGenerator.Api.Application.Services
                     imagePart.FeedData(stream);
                 }
                 var imagePartId = headerPart.GetIdOfPart(imagePart);
+                Console.WriteLine($"Image Part ID: {imagePartId}");
+
                 if (string.IsNullOrEmpty(imagePartId))
+                {
+                    Console.WriteLine("ERROR: ImagePartId is null or empty");
                     return;
+                }
 
-                long cx = (long)(imageDto.Width * 9525);
-                long cy = (long)(imageDto.Height * 9525);
+                // محاسبه ابعاد
+                long cx, cy;
 
-                if (cx < 1) cx = 9525;
-                if (cy < 1) cy = 9525;
+                if (imageDto.Width <= 0)
+                    imageDto.Width = 60;
+
+                if (imageDto.Height <= 0)
+                {
+                    try
+                    {
+                        using (var ms = new MemoryStream(imageBytes))
+                        {
+                            using (var img = System.Drawing.Image.FromStream(ms))
+                            {
+                                var ratio = (double)img.Width / img.Height;
+                                imageDto.Height = (int)(imageDto.Width / ratio);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        imageDto.Height = (int)(imageDto.Width * 0.75);
+                    }
+                }
+
+                cx = (long)(imageDto.Width * 9525);
+                cy = (long)(imageDto.Height * 9525);
 
                 long maxSize = 200 * 9525;
                 if (cx > maxSize)
@@ -814,43 +882,97 @@ namespace WordGenerator.Api.Application.Services
                     cy = maxSize;
                 }
 
-                var run = new W.Run();
+                if (cx < 1) cx = 9525;
+                if (cy < 1) cy = 9525;
 
-                var drawing = new W.Drawing(
-                    new DW.Inline(
-                        new DW.Extent() { Cx = cx, Cy = cy },
-                        new DW.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 100000L, BottomEdge = 0L },
-                        new DW.DocProperties() { Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks), Name = imageDto.FileName ?? "Logo" },
-                        new DW.NonVisualGraphicFrameDrawingProperties(new D.GraphicFrameLocks() { NoChangeAspect = true }),
-                        new D.Graphic(
-                            new D.GraphicData(
-                                new PIC.Picture(
-                                    new PIC.NonVisualPictureProperties(
-                                        new PIC.NonVisualDrawingProperties() { Id = (UInt32Value)0U, Name = imageDto.FileName ?? "logo.jpg" },
-                                        new PIC.NonVisualPictureDrawingProperties()
-                                    ),
-                                    new PIC.BlipFill(new D.Blip() { Embed = imagePartId }, new D.Stretch(new D.FillRectangle())),
-                                    new PIC.ShapeProperties(
-                                        new D.Transform2D(new D.Offset() { X = 0L, Y = 0L }, new D.Extents() { Cx = cx, Cy = cy }),
-                                        new D.PresetGeometry(new D.AdjustValueList()) { Preset = D.ShapeTypeValues.Rectangle }
-                                    )
-                                )
-                            )
-                            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
-                        )
-                    )
-                );
+                uint uniqueId = _imageId++;
+                Console.WriteLine($"Unique Image ID: {uniqueId}");
 
-                run.Append(drawing);
-                paragraph.Append(run);
+                // ===== ایجاد Run با Spacing =====
+                var imageRun = new W.Run();
+
+                // ===== اضافه کردن Spacing به RunProperties =====
+                var runProps = new W.RunProperties();
+                // Spacing به معنی فاصله بین Runها - مقدار 40 معادل 4px
+                runProps.AppendChild(new W.Spacing() { Val = 40 });
+                imageRun.AppendChild(runProps);
+
+                var drawing = new W.Drawing();
+
+                var inline = new DW.Inline();
+                inline.AppendChild(new DW.Extent() { Cx = cx, Cy = cy });
+                inline.AppendChild(new DW.EffectExtent()
+                {
+                    LeftEdge = 0L,
+                    TopEdge = 0L,
+                    RightEdge = 100000L,
+                    BottomEdge = 0L
+                });
+                inline.AppendChild(new DW.DocProperties()
+                {
+                    Id = (UInt32Value)uniqueId,
+                    Name = imageDto.FileName ?? $"Logo_{uniqueId}",
+                    Description = ""
+                });
+
+                var nvGraphicFramePr = new DW.NonVisualGraphicFrameDrawingProperties();
+                nvGraphicFramePr.AppendChild(new D.GraphicFrameLocks() { NoChangeAspect = true });
+                inline.AppendChild(nvGraphicFramePr);
+
+                var graphic = new D.Graphic();
+                var graphicData = new D.GraphicData()
+                {
+                    Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture"
+                };
+
+                var picture = new PIC.Picture();
+
+                var nvPicPr = new PIC.NonVisualPictureProperties();
+                nvPicPr.AppendChild(new PIC.NonVisualDrawingProperties()
+                {
+                    Id = (UInt32Value)0U,
+                    Name = imageDto.FileName ?? $"Logo_{uniqueId}",
+                    Description = ""
+                });
+                nvPicPr.AppendChild(new PIC.NonVisualPictureDrawingProperties());
+                picture.AppendChild(nvPicPr);
+
+                var blipFill = new PIC.BlipFill();
+                blipFill.AppendChild(new D.Blip() { Embed = imagePartId });
+                blipFill.AppendChild(new D.Stretch(new D.FillRectangle()));
+                picture.AppendChild(blipFill);
+
+                var spPr = new PIC.ShapeProperties();
+                var xfrm = new D.Transform2D();
+                xfrm.AppendChild(new D.Offset() { X = 0L, Y = 0L });
+                xfrm.AppendChild(new D.Extents() { Cx = cx, Cy = cy });
+                spPr.AppendChild(xfrm);
+                spPr.AppendChild(new D.PresetGeometry(new D.AdjustValueList())
+                {
+                    Preset = D.ShapeTypeValues.Rectangle
+                });
+                picture.AppendChild(spPr);
+
+                graphicData.AppendChild(picture);
+                graphic.AppendChild(graphicData);
+                inline.AppendChild(graphic);
+
+                drawing.AppendChild(inline);
+                imageRun.AppendChild(drawing);
+                paragraph.AppendChild(imageRun);
+
+                Console.WriteLine($"✅ Header Image inserted successfully: {imageDto.FileName}");
             }
             catch (Exception ex)
             {
-                var run = new W.Run(
+                Console.WriteLine($"ERROR in InsertImageToHeader: {ex.Message}");
+                Console.WriteLine($"StackTrace: {ex.StackTrace}");
+
+                var errorRun = new W.Run(
                     new W.RunProperties(new W.FontSize { Val = "16" }, new W.Color { Val = "FF6600" }),
                     new W.Text($"[{imageDto.FileName ?? "لوگو"}]")
                 );
-                paragraph.Append(run);
+                paragraph.AppendChild(errorRun);
             }
         }
         #endregion
@@ -1878,6 +2000,51 @@ namespace WordGenerator.Api.Application.Services
 
         #region Image Methods
 
+        #region Image Methods
+
+        private uint _imageId = 1; // برای تولید Id یکتا
+
+        /// <summary>
+        /// تشخیص نوع تصویر و برگرداندن PartTypeInfo مناسب
+        /// </summary>
+        private PartTypeInfo DetectImagePartType(byte[] imageBytes)
+        {
+            if (imageBytes == null || imageBytes.Length < 4)
+                return ImagePartType.Jpeg;
+
+            // PNG
+            if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 &&
+                imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+            {
+                return ImagePartType.Png;
+            }
+            // JPEG
+            else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
+            {
+                return ImagePartType.Jpeg;
+            }
+            // GIF
+            else if (imageBytes[0] == 0x47 && imageBytes[1] == 0x49 &&
+                     imageBytes[2] == 0x46 && imageBytes[3] == 0x38)
+            {
+                return ImagePartType.Gif;
+            }
+            // BMP
+            else if (imageBytes[0] == 0x42 && imageBytes[1] == 0x4D)
+            {
+                return ImagePartType.Bmp;
+            }
+            // WebP
+            else if (imageBytes[0] == 0x52 && imageBytes[1] == 0x49 &&
+                     imageBytes[2] == 0x46 && imageBytes[3] == 0x46)
+            {
+                // WebP رو به JPEG تبدیل میکنیم چون Word پشتیبانی کامل نداره
+                return ImagePartType.Jpeg;
+            }
+
+            return ImagePartType.Jpeg;
+        }
+
         private void InsertImageToParagraph(W.Paragraph paragraph, ImageItemDto imageDto, MainDocumentPart mainPart)
         {
             if (string.IsNullOrEmpty(imageDto.ImageBase64))
@@ -1885,40 +2052,96 @@ namespace WordGenerator.Api.Application.Services
 
             try
             {
-                var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
-                if (imageBytes == null || imageBytes.Length == 0)
-                    return;
+                // ===== 1. بررسی Base64 =====
+                Console.WriteLine($"=== Inserting Image: {imageDto.FileName} ===");
+                Console.WriteLine($"Base64 Length: {imageDto.ImageBase64?.Length ?? 0}");
 
-                var imagePartType = ImagePartType.Jpeg;
-                if (imageBytes.Length > 4)
+                // ===== 2. تبدیل Base64 به byte[] =====
+                var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+                Console.WriteLine($"Image Bytes Length: {imageBytes.Length}");
+
+                if (imageBytes == null || imageBytes.Length == 0)
                 {
-                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 &&
-                        imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
-                    {
-                        imagePartType = ImagePartType.Png;
-                    }
-                    else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
-                    {
-                        imagePartType = ImagePartType.Jpeg;
-                    }
+                    Console.WriteLine("ERROR: Image bytes is null or empty");
+                    return;
                 }
 
+                // ===== 3. بررسی اینکه تصویر واقعاً قابل باز شدنه =====
+                try
+                {
+                    using (var ms = new MemoryStream(imageBytes))
+                    {
+                        using (var img = System.Drawing.Image.FromStream(ms))
+                        {
+                            Console.WriteLine($"Image loaded successfully: {img.Width}x{img.Height}");
+                        }
+                    }
+                }
+                catch (Exception imgEx)
+                {
+                    Console.WriteLine($"ERROR: Image is corrupted - {imgEx.Message}");
+                    // تصویر خرابه، یه placeholder نشون بده
+                    var errorRun = new W.Run(
+                        new W.RunProperties(
+                            new W.FontSize { Val = "24" },
+                            new W.Color { Val = "FF0000" }
+                        ),
+                        new W.Text($"[تصویر خراب: {imageDto.FileName}]")
+                    );
+                    paragraph.AppendChild(errorRun);
+                    return;
+                }
+
+                // ===== 4. تشخیص نوع تصویر =====
+                var imagePartType = DetectImagePartType(imageBytes);
+                Console.WriteLine($"Image Type: {imagePartType}");
+
+                // ===== 5. اضافه کردن ImagePart =====
                 var imagePart = mainPart.AddImagePart(imagePartType);
                 using (var stream = new MemoryStream(imageBytes))
                 {
                     imagePart.FeedData(stream);
                 }
 
+                // ===== 6. گرفتن ImagePartId =====
                 var imagePartId = mainPart.GetIdOfPart(imagePart);
+                Console.WriteLine($"Image Part ID: {imagePartId}");
+
                 if (string.IsNullOrEmpty(imagePartId))
+                {
+                    Console.WriteLine("ERROR: ImagePartId is null or empty");
                     return;
+                }
 
-                long cx = (long)(imageDto.Width * 9525);
-                long cy = (long)(imageDto.Height * 9525);
+                // ===== 7. محاسبه ابعاد با مقدار پیش‌فرض =====
+                long cx, cy;
 
-                if (cy == 0 && cx > 0)
-                    cy = cx;
+                if (imageDto.Width <= 0)
+                    imageDto.Width = 400;
 
+                if (imageDto.Height <= 0)
+                {
+                    try
+                    {
+                        using (var ms = new MemoryStream(imageBytes))
+                        {
+                            using (var img = System.Drawing.Image.FromStream(ms))
+                            {
+                                var ratio = (double)img.Width / img.Height;
+                                imageDto.Height = (int)(imageDto.Width / ratio);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        imageDto.Height = (int)(imageDto.Width * 0.75);
+                    }
+                }
+
+                cx = (long)(imageDto.Width * 9525);
+                cy = (long)(imageDto.Height * 9525);
+
+                // محدودیت اندازه
                 long maxSize = 800 * 9525;
                 if (cx > maxSize)
                 {
@@ -1934,45 +2157,100 @@ namespace WordGenerator.Api.Application.Services
                 if (cx < 1) cx = 9525;
                 if (cy < 1) cy = 9525;
 
-                var run = new W.Run();
+                Console.WriteLine($"Final Size: {cx / 9525}x{cy / 9525} pixels");
+
+                // ===== 8. ایجاد Run و Drawing با Id یکتا =====
+                var imageRun = new W.Run();
+
+                uint uniqueId = _imageId++;
+                Console.WriteLine($"Unique Image ID: {uniqueId}");
+
                 var drawing = new W.Drawing();
 
-                var inline = new DW.Inline(
-                    new DW.Extent() { Cx = cx, Cy = cy },
-                    new DW.EffectExtent() { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
-                    new DW.DocProperties() { Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks), Name = imageDto.FileName ?? "Image" },
-                    new DW.NonVisualGraphicFrameDrawingProperties(new D.GraphicFrameLocks() { NoChangeAspect = true }),
-                    new D.Graphic(
-                        new D.GraphicData(
-                            new PIC.Picture(
-                                new PIC.NonVisualPictureProperties(
-                                    new PIC.NonVisualDrawingProperties() { Id = (UInt32Value)0U, Name = imageDto.FileName ?? "Image" },
-                                    new PIC.NonVisualPictureDrawingProperties()
-                                ),
-                                new PIC.BlipFill(new D.Blip() { Embed = imagePartId }, new D.Stretch(new D.FillRectangle())),
-                                new PIC.ShapeProperties(
-                                    new D.Transform2D(new D.Offset() { X = 0L, Y = 0L }, new D.Extents() { Cx = cx, Cy = cy }),
-                                    new D.PresetGeometry(new D.AdjustValueList()) { Preset = D.ShapeTypeValues.Rectangle }
-                                )
-                            )
-                        )
-                        { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
-                    )
-                );
+                var inline = new DW.Inline();
 
-                drawing.Append(inline);
-                run.Append(drawing);
-                paragraph.Append(run);
+                inline.AppendChild(new DW.Extent() { Cx = cx, Cy = cy });
+                inline.AppendChild(new DW.EffectExtent()
+                {
+                    LeftEdge = 0L,
+                    TopEdge = 0L,
+                    RightEdge = 0L,
+                    BottomEdge = 0L
+                });
+
+                inline.AppendChild(new DW.DocProperties()
+                {
+                    Id = (UInt32Value)uniqueId,
+                    Name = imageDto.FileName ?? $"Image_{uniqueId}",
+                    Description = imageDto.Caption ?? ""
+                });
+
+                var nvGraphicFramePr = new DW.NonVisualGraphicFrameDrawingProperties();
+                nvGraphicFramePr.AppendChild(new D.GraphicFrameLocks() { NoChangeAspect = true });
+                inline.AppendChild(nvGraphicFramePr);
+
+                var graphic = new D.Graphic();
+                var graphicData = new D.GraphicData()
+                {
+                    Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture"
+                };
+
+                var picture = new PIC.Picture();
+
+                var nvPicPr = new PIC.NonVisualPictureProperties();
+                nvPicPr.AppendChild(new PIC.NonVisualDrawingProperties()
+                {
+                    Id = (UInt32Value)0U,
+                    Name = imageDto.FileName ?? $"Image_{uniqueId}",
+                    Description = imageDto.Caption ?? ""
+                });
+                nvPicPr.AppendChild(new PIC.NonVisualPictureDrawingProperties());
+                picture.AppendChild(nvPicPr);
+
+                var blipFill = new PIC.BlipFill();
+                var blip = new D.Blip() { Embed = imagePartId };
+                blipFill.AppendChild(blip);
+                blipFill.AppendChild(new D.Stretch(new D.FillRectangle()));
+                picture.AppendChild(blipFill);
+
+                var spPr = new PIC.ShapeProperties();
+                var xfrm = new D.Transform2D();
+                xfrm.AppendChild(new D.Offset() { X = 0L, Y = 0L });
+                xfrm.AppendChild(new D.Extents() { Cx = cx, Cy = cy });
+                spPr.AppendChild(xfrm);
+                spPr.AppendChild(new D.PresetGeometry(new D.AdjustValueList())
+                {
+                    Preset = D.ShapeTypeValues.Rectangle
+                });
+                picture.AppendChild(spPr);
+
+                graphicData.AppendChild(picture);
+                graphic.AppendChild(graphicData);
+                inline.AppendChild(graphic);
+
+                drawing.AppendChild(inline);
+                imageRun.AppendChild(drawing);
+                paragraph.AppendChild(imageRun);
+
+                Console.WriteLine($"✅ Image inserted successfully: {imageDto.FileName}");
             }
             catch (Exception ex)
             {
-                var run = new W.Run(
-                    new W.RunProperties(new W.FontSize { Val = "24" }, new W.Color { Val = "FF0000" }),
+                Console.WriteLine($"ERROR in InsertImageToParagraph: {ex.Message}");
+                Console.WriteLine($"StackTrace: {ex.StackTrace}");
+
+                var errorRun = new W.Run(
+                    new W.RunProperties(
+                        new W.FontSize { Val = "24" },
+                        new W.Color { Val = "FF0000" }
+                    ),
                     new W.Text($"[خطا: {imageDto.FileName}]")
                 );
-                paragraph.Append(run);
+                paragraph.AppendChild(errorRun);
             }
         }
+
+        #endregion
 
         private ImageItemDto MapImageToDto(ImageItem image)
         {
@@ -2026,13 +2304,22 @@ namespace WordGenerator.Api.Application.Services
 
         private W.Paragraph CreateMasterHeading(string text, string sectionNumber)
         {
+            // ===== محاسبه فاصله برای وسط‌چین عمودی =====
+            // حدود 40% از ارتفاع صفحه (با فرض A4)
+            // مقدار 1440 = 1 اینچ، 4320 = 3 اینچ
+            int spacingBefore = 4320; // حدود 3 اینچ فاصله از بالا
+
             var paragraph = new W.Paragraph(
                 new W.ParagraphProperties(
                     new W.ParagraphStyleId() { Val = "Heading1" },
                     new W.Justification() { Val = W.JustificationValues.Center },
                     new W.BiDi(),
-                    new W.SpacingBetweenLines { After = "240", Before = "240" },
-                    new W.PageBreakBefore()
+                    new W.SpacingBetweenLines
+                    {
+                        After = "0",
+                        Before = spacingBefore.ToString()  // فاصله قبل از عنوان
+                    },
+                    new W.PageBreakBefore()  // صفحه جدید
                 ),
                 new W.Run(
                     new W.RunProperties(
