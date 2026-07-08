@@ -45,5 +45,11 @@ namespace WordGenerator.Api.Domain.Entities
 
         public long? DocumentSectionId { get; set; }
         public virtual DocumentSection? DocumentSection { get; set; }
+
+        public long? PrefaceSectionId { get; set; }
+        public virtual PrefaceSection? PrefaceSection { get; set; }
+
+        public long? ConceptsSectionId { get; set; }
+        public virtual ConceptsSection? ConceptsSection { get; set; }
     }
 }

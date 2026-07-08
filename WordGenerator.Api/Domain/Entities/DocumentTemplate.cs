@@ -14,6 +14,9 @@
         // بخش‌های جدید سلسله‌مراتبی
         public ICollection<MasterSection> MasterSections { get; set; } = new List<MasterSection>();
 
+        public virtual PrefaceSection? PrefaceSection { get; set; }
+        public virtual ConceptsSection? ConceptsSection { get; set; }
+
         // ===== بخش‌های جدید انتهای سند =====
         public virtual AttachmentSection? AttachmentSection { get; set; }
         public virtual ReferenceSection? ReferenceSection { get; set; }

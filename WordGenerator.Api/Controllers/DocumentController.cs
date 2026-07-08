@@ -16,17 +16,17 @@ namespace WordGenerator.Api.Controllers
             _wordService = wordService;
         }
 
-        [HttpPost("generate")]
-        public async Task<IActionResult> Generate(GenerateDocumentRequest request)
-        {
-            var file = await _wordService.GenerateAsync(request);
+        //[HttpPost("generate")]
+        //public async Task<IActionResult> Generate(GenerateDocumentRequest request)
+        //{
+        //    var file = await _wordService.GenerateAsync(request);
 
-            return File(
-                file,
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "document.docx"
-            );
-        }
+        //    return File(
+        //        file,
+        //        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        //        "document.docx"
+        //    );
+        //}
 
         [HttpPost("user-generate")]
         public async Task<IActionResult> UserGenerate(DocumentGenerationDto request)
