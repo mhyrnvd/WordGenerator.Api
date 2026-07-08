@@ -57,7 +57,7 @@ namespace WordGenerator.Api.Controllers
                     },
                     MasterSections = new List<MasterSection>(),
                     Sections = new List<TemplateSection>(),
-                    // ===== بخش‌های جدید انتهای سند =====
+                    // ===== بخش‌های انتهای سند =====
                     AttachmentSection = dto.AttachmentSection != null ? new AttachmentSection
                     {
                         Title = dto.AttachmentSection.Title ?? "الف) پیوست‌ها",
@@ -78,6 +78,19 @@ namespace WordGenerator.Api.Controllers
                         IsActive = dto.DocumentSection.IsActive,
                         Order = dto.DocumentSection.Order,
                         Elements = new List<ContentElement>()
+                    } : null,
+                    // ===== پیش‌گفتار و مفاهیم =====
+                    PrefaceSection = dto.PrefaceSection != null ? new PrefaceSection
+                    {
+                        Title = dto.PrefaceSection.Title ?? "پیش‌گفتار",
+                        IsActive = dto.PrefaceSection.IsActive,
+                        Elements = new List<ContentElement>()
+                    } : null,
+                    ConceptsSection = dto.ConceptsSection != null ? new ConceptsSection
+                    {
+                        Title = dto.ConceptsSection.Title ?? "مفاهیم",
+                        IsActive = dto.ConceptsSection.IsActive,
+                        Elements = new List<ContentElement>()
                     } : null
                 };
 
@@ -93,6 +106,8 @@ namespace WordGenerator.Api.Controllers
                         null,
                         null,
                         template.CoverPage.Id,
+                        null,
+                        null,
                         null,
                         null,
                         null
@@ -124,6 +139,8 @@ namespace WordGenerator.Api.Controllers
                         null,
                         null,
                         null,
+                        null,
+                        null,
                         null
                     );
                     await _context.SaveChangesAsync();
@@ -146,6 +163,8 @@ namespace WordGenerator.Api.Controllers
                             subDto.Elements,
                             null,
                             sub.Id,
+                            null,
+                            null,
                             null,
                             null,
                             null,
@@ -178,6 +197,8 @@ namespace WordGenerator.Api.Controllers
                         null,
                         null,
                         null,
+                        null,
+                        null,
                         null
                     );
                     await _context.SaveChangesAsync();
@@ -193,6 +214,8 @@ namespace WordGenerator.Api.Controllers
                         null,
                         null,
                         template.AttachmentSection.Id,
+                        null,
+                        null,
                         null,
                         null
                     );
@@ -210,6 +233,8 @@ namespace WordGenerator.Api.Controllers
                         null,
                         null,
                         template.ReferenceSection.Id,
+                        null,
+                        null,
                         null
                     );
                     await _context.SaveChangesAsync();
@@ -226,7 +251,45 @@ namespace WordGenerator.Api.Controllers
                         null,
                         null,
                         null,
-                        template.DocumentSection.Id
+                        template.DocumentSection.Id,
+                        null,
+                        null
+                    );
+                    await _context.SaveChangesAsync();
+                }
+
+                // ========== Preface Section Elements ==========
+                if (template.PrefaceSection != null && dto.PrefaceSection != null)
+                {
+                    template.PrefaceSection.Elements = await MapContentElements(
+                        dto.PrefaceSection.Elements,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        template.PrefaceSection.Id,
+                        null
+                    );
+                    await _context.SaveChangesAsync();
+                }
+
+                // ========== Concepts Section Elements ==========
+                if (template.ConceptsSection != null && dto.ConceptsSection != null)
+                {
+                    template.ConceptsSection.Elements = await MapContentElements(
+                        dto.ConceptsSection.Elements,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        template.ConceptsSection.Id
                     );
                     await _context.SaveChangesAsync();
                 }
@@ -257,6 +320,8 @@ namespace WordGenerator.Api.Controllers
                     HasAttachmentSection = x.AttachmentSection != null,
                     HasReferenceSection = x.ReferenceSection != null,
                     HasDocumentSection = x.DocumentSection != null,
+                    HasPrefaceSection = x.PrefaceSection != null,
+                    HasConceptsSection = x.ConceptsSection != null,
                     MasterSectionsCount = x.MasterSections.Count,
                     SectionsCount = x.Sections.Count
                 })
@@ -349,7 +414,7 @@ namespace WordGenerator.Api.Controllers
                     .ThenInclude(s => s.Elements)
                         .ThenInclude(e => e.BulletList)
                             .ThenInclude(b => b.Items)
-                // ===== Include بخش‌های جدید =====
+                // ===== بخش‌های انتهای سند =====
                 .Include(x => x.AttachmentSection)
                     .ThenInclude(a => a.Elements)
                         .ThenInclude(e => e.Image)
@@ -399,6 +464,41 @@ namespace WordGenerator.Api.Controllers
                                     .ThenInclude(c => c.Column)
                 .Include(x => x.DocumentSection)
                     .ThenInclude(d => d.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
+                // ===== پیش‌گفتار و مفاهیم =====
+                .Include(x => x.PrefaceSection)
+                    .ThenInclude(p => p.Elements)
+                        .ThenInclude(e => e.Image)
+                .Include(x => x.PrefaceSection)
+                    .ThenInclude(p => p.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
+                .Include(x => x.PrefaceSection)
+                    .ThenInclude(p => p.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
+                .Include(x => x.PrefaceSection)
+                    .ThenInclude(p => p.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
+                .Include(x => x.ConceptsSection)
+                    .ThenInclude(c => c.Elements)
+                        .ThenInclude(e => e.Image)
+                .Include(x => x.ConceptsSection)
+                    .ThenInclude(c => c.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
+                .Include(x => x.ConceptsSection)
+                    .ThenInclude(c => c.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
+                .Include(x => x.ConceptsSection)
+                    .ThenInclude(c => c.Elements)
                         .ThenInclude(e => e.BulletList)
                             .ThenInclude(b => b.Items)
                 .FirstOrDefaultAsync(x => x.Id == id);
@@ -468,7 +568,7 @@ namespace WordGenerator.Api.Controllers
                     Elements = x.Elements.OrderBy(e => e.Order).Select(e => MapContentElementToDto(e))
                 }),
 
-                // ===== بخش‌های جدید =====
+                // ===== بخش‌های انتهای سند =====
                 AttachmentSection = template.AttachmentSection == null ? null : new
                 {
                     template.AttachmentSection.Id,
@@ -494,6 +594,23 @@ namespace WordGenerator.Api.Controllers
                     template.DocumentSection.IsActive,
                     template.DocumentSection.Order,
                     Elements = template.DocumentSection.Elements.OrderBy(e => e.Order).Select(e => MapContentElementToDto(e))
+                },
+
+                // ===== پیش‌گفتار و مفاهیم =====
+                PrefaceSection = template.PrefaceSection == null ? null : new
+                {
+                    template.PrefaceSection.Id,
+                    template.PrefaceSection.Title,
+                    template.PrefaceSection.IsActive,
+                    Elements = template.PrefaceSection.Elements.OrderBy(e => e.Order).Select(e => MapContentElementToDto(e))
+                },
+
+                ConceptsSection = template.ConceptsSection == null ? null : new
+                {
+                    template.ConceptsSection.Id,
+                    template.ConceptsSection.Title,
+                    template.ConceptsSection.IsActive,
+                    Elements = template.ConceptsSection.Elements.OrderBy(e => e.Order).Select(e => MapContentElementToDto(e))
                 }
             });
         }
@@ -581,7 +698,7 @@ namespace WordGenerator.Api.Controllers
                         .ThenInclude(s => s.Elements)
                             .ThenInclude(e => e.BulletList)
                                 .ThenInclude(b => b.Items)
-                    // ===== Include بخش‌های جدید =====
+                    // ===== بخش‌های انتهای سند =====
                     .Include(x => x.AttachmentSection)
                         .ThenInclude(a => a.Elements)
                             .ThenInclude(e => e.Image)
@@ -628,6 +745,39 @@ namespace WordGenerator.Api.Controllers
                                     .ThenInclude(r => r.Cells)
                     .Include(x => x.DocumentSection)
                         .ThenInclude(d => d.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
+                    // ===== پیش‌گفتار و مفاهیم =====
+                    .Include(x => x.PrefaceSection)
+                        .ThenInclude(p => p.Elements)
+                            .ThenInclude(e => e.Image)
+                    .Include(x => x.PrefaceSection)
+                        .ThenInclude(p => p.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Columns)
+                    .Include(x => x.PrefaceSection)
+                        .ThenInclude(p => p.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Rows)
+                                    .ThenInclude(r => r.Cells)
+                    .Include(x => x.PrefaceSection)
+                        .ThenInclude(p => p.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
+                    .Include(x => x.ConceptsSection)
+                        .ThenInclude(c => c.Elements)
+                            .ThenInclude(e => e.Image)
+                    .Include(x => x.ConceptsSection)
+                        .ThenInclude(c => c.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Columns)
+                    .Include(x => x.ConceptsSection)
+                        .ThenInclude(c => c.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Rows)
+                                    .ThenInclude(r => r.Cells)
+                    .Include(x => x.ConceptsSection)
+                        .ThenInclude(c => c.Elements)
                             .ThenInclude(e => e.BulletList)
                                 .ThenInclude(b => b.Items)
                     .FirstOrDefaultAsync(x => x.Id == id);
@@ -719,7 +869,31 @@ namespace WordGenerator.Api.Controllers
                     await _context.SaveChangesAsync();
                 }
 
-                // 14. حذف زیربخش‌ها
+                // 14. حذف Preface Section
+                if (template.PrefaceSection != null)
+                {
+                    if (template.PrefaceSection.Elements.Any())
+                    {
+                        _context.ContentElements.RemoveRange(template.PrefaceSection.Elements);
+                        await _context.SaveChangesAsync();
+                    }
+                    _context.PrefaceSections.Remove(template.PrefaceSection);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 15. حذف Concepts Section
+                if (template.ConceptsSection != null)
+                {
+                    if (template.ConceptsSection.Elements.Any())
+                    {
+                        _context.ContentElements.RemoveRange(template.ConceptsSection.Elements);
+                        await _context.SaveChangesAsync();
+                    }
+                    _context.ConceptsSections.Remove(template.ConceptsSection);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 16. حذف زیربخش‌ها
                 foreach (var master in template.MasterSections)
                 {
                     if (master.SubSections.Any())
@@ -729,35 +903,35 @@ namespace WordGenerator.Api.Controllers
                     }
                 }
 
-                // 15. حذف بخش‌های اصلی
+                // 17. حذف بخش‌های اصلی
                 if (template.MasterSections.Any())
                 {
                     _context.MasterSections.RemoveRange(template.MasterSections);
                     await _context.SaveChangesAsync();
                 }
 
-                // 16. حذف بخش‌های قدیمی
+                // 18. حذف بخش‌های قدیمی
                 if (template.Sections.Any())
                 {
                     _context.TemplateSections.RemoveRange(template.Sections);
                     await _context.SaveChangesAsync();
                 }
 
-                // 17. حذف لوگوهای هدر
+                // 19. حذف لوگوهای هدر
                 if (template.PageHeader != null && template.PageHeader.Logos.Any())
                 {
                     _context.HeaderLogos.RemoveRange(template.PageHeader.Logos);
                     await _context.SaveChangesAsync();
                 }
 
-                // 18. حذف PageHeader
+                // 20. حذف PageHeader
                 if (template.PageHeader != null)
                 {
                     _context.PageHeaders.Remove(template.PageHeader);
                     await _context.SaveChangesAsync();
                 }
 
-                // 19. حذف خود تمپلیت
+                // 21. حذف خود تمپلیت
                 _context.DocumentTemplates.Remove(template);
                 await _context.SaveChangesAsync();
 
@@ -854,7 +1028,7 @@ namespace WordGenerator.Api.Controllers
                         .ThenInclude(s => s.Elements)
                             .ThenInclude(e => e.BulletList)
                                 .ThenInclude(b => b.Items)
-                    // ===== Include بخش‌های جدید =====
+                    // ===== بخش‌های انتهای سند =====
                     .Include(x => x.AttachmentSection)
                         .ThenInclude(a => a.Elements)
                             .ThenInclude(e => e.Image)
@@ -901,6 +1075,39 @@ namespace WordGenerator.Api.Controllers
                                     .ThenInclude(r => r.Cells)
                     .Include(x => x.DocumentSection)
                         .ThenInclude(d => d.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
+                    // ===== پیش‌گفتار و مفاهیم =====
+                    .Include(x => x.PrefaceSection)
+                        .ThenInclude(p => p.Elements)
+                            .ThenInclude(e => e.Image)
+                    .Include(x => x.PrefaceSection)
+                        .ThenInclude(p => p.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Columns)
+                    .Include(x => x.PrefaceSection)
+                        .ThenInclude(p => p.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Rows)
+                                    .ThenInclude(r => r.Cells)
+                    .Include(x => x.PrefaceSection)
+                        .ThenInclude(p => p.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
+                    .Include(x => x.ConceptsSection)
+                        .ThenInclude(c => c.Elements)
+                            .ThenInclude(e => e.Image)
+                    .Include(x => x.ConceptsSection)
+                        .ThenInclude(c => c.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Columns)
+                    .Include(x => x.ConceptsSection)
+                        .ThenInclude(c => c.Elements)
+                            .ThenInclude(e => e.Table)
+                                .ThenInclude(t => t.Rows)
+                                    .ThenInclude(r => r.Cells)
+                    .Include(x => x.ConceptsSection)
+                        .ThenInclude(c => c.Elements)
                             .ThenInclude(e => e.BulletList)
                                 .ThenInclude(b => b.Items)
                     .FirstOrDefaultAsync(x => x.Id == id);
@@ -992,7 +1199,31 @@ namespace WordGenerator.Api.Controllers
                     await _context.SaveChangesAsync();
                 }
 
-                // 14. حذف زیربخش‌ها
+                // 14. حذف Preface Section
+                if (existingTemplate.PrefaceSection != null)
+                {
+                    if (existingTemplate.PrefaceSection.Elements.Any())
+                    {
+                        _context.ContentElements.RemoveRange(existingTemplate.PrefaceSection.Elements);
+                        await _context.SaveChangesAsync();
+                    }
+                    _context.PrefaceSections.Remove(existingTemplate.PrefaceSection);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 15. حذف Concepts Section
+                if (existingTemplate.ConceptsSection != null)
+                {
+                    if (existingTemplate.ConceptsSection.Elements.Any())
+                    {
+                        _context.ContentElements.RemoveRange(existingTemplate.ConceptsSection.Elements);
+                        await _context.SaveChangesAsync();
+                    }
+                    _context.ConceptsSections.Remove(existingTemplate.ConceptsSection);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 16. حذف زیربخش‌ها
                 foreach (var master in existingTemplate.MasterSections)
                 {
                     if (master.SubSections.Any())
@@ -1002,39 +1233,39 @@ namespace WordGenerator.Api.Controllers
                     }
                 }
 
-                // 15. حذف بخش‌های اصلی
+                // 17. حذف بخش‌های اصلی
                 if (existingTemplate.MasterSections.Any())
                 {
                     _context.MasterSections.RemoveRange(existingTemplate.MasterSections);
                     await _context.SaveChangesAsync();
                 }
 
-                // 16. حذف بخش‌های قدیمی
+                // 18. حذف بخش‌های قدیمی
                 if (existingTemplate.Sections.Any())
                 {
                     _context.TemplateSections.RemoveRange(existingTemplate.Sections);
                     await _context.SaveChangesAsync();
                 }
 
-                // 17. حذف لوگوهای هدر
+                // 19. حذف لوگوهای هدر
                 if (existingTemplate.PageHeader != null && existingTemplate.PageHeader.Logos.Any())
                 {
                     _context.HeaderLogos.RemoveRange(existingTemplate.PageHeader.Logos);
                     await _context.SaveChangesAsync();
                 }
 
-                // 18. حذف PageHeader
+                // 20. حذف PageHeader
                 if (existingTemplate.PageHeader != null)
                 {
                     _context.PageHeaders.Remove(existingTemplate.PageHeader);
                     await _context.SaveChangesAsync();
                 }
 
-                // 19. حذف خود تمپلیت
+                // 21. حذف خود تمپلیت
                 _context.DocumentTemplates.Remove(existingTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 20. ایجاد تمپلیت جدید ==========
+                // ========== 22. ایجاد تمپلیت جدید ==========
                 var newTemplate = new DocumentTemplate
                 {
                     Name = dto.Name,
@@ -1084,13 +1315,26 @@ namespace WordGenerator.Api.Controllers
                         IsActive = dto.DocumentSection.IsActive,
                         Order = dto.DocumentSection.Order,
                         Elements = new List<ContentElement>()
+                    } : null,
+                    // ===== جدید: پیش‌گفتار و مفاهیم =====
+                    PrefaceSection = dto.PrefaceSection != null ? new PrefaceSection
+                    {
+                        Title = dto.PrefaceSection.Title ?? "پیش‌گفتار",
+                        IsActive = dto.PrefaceSection.IsActive,
+                        Elements = new List<ContentElement>()
+                    } : null,
+                    ConceptsSection = dto.ConceptsSection != null ? new ConceptsSection
+                    {
+                        Title = dto.ConceptsSection.Title ?? "مفاهیم",
+                        IsActive = dto.ConceptsSection.IsActive,
+                        Elements = new List<ContentElement>()
                     } : null
                 };
 
                 _context.DocumentTemplates.Add(newTemplate);
                 await _context.SaveChangesAsync();
 
-                // ========== 21. اضافه کردن Cover Page Elements ==========
+                // ========== 23. اضافه کردن Cover Page Elements ==========
                 if (dto.CoverPage != null && newTemplate.CoverPage != null)
                 {
                     newTemplate.CoverPage.Elements = await MapContentElements(
@@ -1101,12 +1345,14 @@ namespace WordGenerator.Api.Controllers
                         newTemplate.CoverPage.Id,
                         null,
                         null,
+                        null,
+                        null,
                         null
                     );
                     await _context.SaveChangesAsync();
                 }
 
-                // ========== 22. اضافه کردن Master Sections ==========
+                // ========== 24. اضافه کردن Master Sections ==========
                 foreach (var masterDto in dto.MasterSections.OrderBy(x => x.Order))
                 {
                     var master = new MasterSection
@@ -1125,6 +1371,8 @@ namespace WordGenerator.Api.Controllers
                     master.Elements = await MapContentElements(
                         masterDto.Elements,
                         master.Id,
+                        null,
+                        null,
                         null,
                         null,
                         null,
@@ -1156,13 +1404,15 @@ namespace WordGenerator.Api.Controllers
                             null,
                             null,
                             null,
+                            null,
+                            null,
                             null
                         );
                         await _context.SaveChangesAsync();
                     }
                 }
 
-                // ========== 23. اضافه کردن Legacy Sections ==========
+                // ========== 25. اضافه کردن Legacy Sections ==========
                 foreach (var sectionDto in dto.Sections.OrderBy(x => x.Order))
                 {
                     var section = new TemplateSection
@@ -1184,12 +1434,14 @@ namespace WordGenerator.Api.Controllers
                         null,
                         null,
                         null,
+                        null,
+                        null,
                         null
                     );
                     await _context.SaveChangesAsync();
                 }
 
-                // ========== 24. اضافه کردن Attachment Section Elements ==========
+                // ========== 26. اضافه کردن Attachment Section Elements ==========
                 if (newTemplate.AttachmentSection != null && dto.AttachmentSection != null)
                 {
                     newTemplate.AttachmentSection.Elements = await MapContentElements(
@@ -1200,12 +1452,14 @@ namespace WordGenerator.Api.Controllers
                         null,
                         newTemplate.AttachmentSection.Id,
                         null,
+                        null,
+                        null,
                         null
                     );
                     await _context.SaveChangesAsync();
                 }
 
-                // ========== 25. اضافه کردن Reference Section Elements ==========
+                // ========== 27. اضافه کردن Reference Section Elements ==========
                 if (newTemplate.ReferenceSection != null && dto.ReferenceSection != null)
                 {
                     newTemplate.ReferenceSection.Elements = await MapContentElements(
@@ -1216,12 +1470,14 @@ namespace WordGenerator.Api.Controllers
                         null,
                         null,
                         newTemplate.ReferenceSection.Id,
+                        null,
+                        null,
                         null
                     );
                     await _context.SaveChangesAsync();
                 }
 
-                // ========== 26. اضافه کردن Document Section Elements ==========
+                // ========== 28. اضافه کردن Document Section Elements ==========
                 if (newTemplate.DocumentSection != null && dto.DocumentSection != null)
                 {
                     newTemplate.DocumentSection.Elements = await MapContentElements(
@@ -1232,7 +1488,45 @@ namespace WordGenerator.Api.Controllers
                         null,
                         null,
                         null,
-                        newTemplate.DocumentSection.Id
+                        newTemplate.DocumentSection.Id,
+                        null,
+                        null
+                    );
+                    await _context.SaveChangesAsync();
+                }
+
+                // ========== 29. اضافه کردن Preface Section Elements ==========
+                if (newTemplate.PrefaceSection != null && dto.PrefaceSection != null)
+                {
+                    newTemplate.PrefaceSection.Elements = await MapContentElements(
+                        dto.PrefaceSection.Elements,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        newTemplate.PrefaceSection.Id,
+                        null
+                    );
+                    await _context.SaveChangesAsync();
+                }
+
+                // ========== 30. اضافه کردن Concepts Section Elements ==========
+                if (newTemplate.ConceptsSection != null && dto.ConceptsSection != null)
+                {
+                    newTemplate.ConceptsSection.Elements = await MapContentElements(
+                        dto.ConceptsSection.Elements,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        newTemplate.ConceptsSection.Id
                     );
                     await _context.SaveChangesAsync();
                 }
@@ -1259,7 +1553,9 @@ namespace WordGenerator.Api.Controllers
             long? coverPageId,
             long? attachmentSectionId,
             long? referenceSectionId,
-            long? documentSectionId)
+            long? documentSectionId,
+            long? prefaceSectionId,
+            long? conceptsSectionId)
         {
             var result = new List<ContentElement>();
 
@@ -1285,7 +1581,9 @@ namespace WordGenerator.Api.Controllers
                     CoverPageId = coverPageId,
                     AttachmentSectionId = attachmentSectionId,
                     ReferenceSectionId = referenceSectionId,
-                    DocumentSectionId = documentSectionId
+                    DocumentSectionId = documentSectionId,
+                    PrefaceSectionId = prefaceSectionId,
+                    ConceptsSectionId = conceptsSectionId
                 };
 
                 switch (element.Type)
@@ -1555,6 +1853,24 @@ namespace WordGenerator.Api.Controllers
                 }
             }
 
+            if (template.PrefaceSection != null)
+            {
+                foreach (var element in template.PrefaceSection.Elements.Where(e => e.Table != null))
+                {
+                    foreach (var row in element.Table.Rows)
+                        allCells.AddRange(row.Cells);
+                }
+            }
+
+            if (template.ConceptsSection != null)
+            {
+                foreach (var element in template.ConceptsSection.Elements.Where(e => e.Table != null))
+                {
+                    foreach (var row in element.Table.Rows)
+                        allCells.AddRange(row.Cells);
+                }
+            }
+
             foreach (var master in template.MasterSections)
             {
                 foreach (var element in master.Elements.Where(e => e.Table != null))
@@ -1615,6 +1931,18 @@ namespace WordGenerator.Api.Controllers
                     allRows.AddRange(element.Table.Rows);
             }
 
+            if (template.PrefaceSection != null)
+            {
+                foreach (var element in template.PrefaceSection.Elements.Where(e => e.Table != null))
+                    allRows.AddRange(element.Table.Rows);
+            }
+
+            if (template.ConceptsSection != null)
+            {
+                foreach (var element in template.ConceptsSection.Elements.Where(e => e.Table != null))
+                    allRows.AddRange(element.Table.Rows);
+            }
+
             foreach (var master in template.MasterSections)
             {
                 foreach (var element in master.Elements.Where(e => e.Table != null))
@@ -1666,6 +1994,18 @@ namespace WordGenerator.Api.Controllers
                     allColumns.AddRange(element.Table.Columns);
             }
 
+            if (template.PrefaceSection != null)
+            {
+                foreach (var element in template.PrefaceSection.Elements.Where(e => e.Table != null))
+                    allColumns.AddRange(element.Table.Columns);
+            }
+
+            if (template.ConceptsSection != null)
+            {
+                foreach (var element in template.ConceptsSection.Elements.Where(e => e.Table != null))
+                    allColumns.AddRange(element.Table.Columns);
+            }
+
             foreach (var master in template.MasterSections)
             {
                 foreach (var element in master.Elements.Where(e => e.Table != null))
@@ -1714,6 +2054,18 @@ namespace WordGenerator.Api.Controllers
             if (template.DocumentSection != null)
             {
                 foreach (var element in template.DocumentSection.Elements.Where(e => e.Table != null))
+                    allTables.Add(element.Table);
+            }
+
+            if (template.PrefaceSection != null)
+            {
+                foreach (var element in template.PrefaceSection.Elements.Where(e => e.Table != null))
+                    allTables.Add(element.Table);
+            }
+
+            if (template.ConceptsSection != null)
+            {
+                foreach (var element in template.ConceptsSection.Elements.Where(e => e.Table != null))
                     allTables.Add(element.Table);
             }
 
@@ -1776,6 +2128,22 @@ namespace WordGenerator.Api.Controllers
                 }
             }
 
+            if (template.PrefaceSection != null)
+            {
+                foreach (var element in template.PrefaceSection.Elements.Where(e => e.BulletList != null))
+                {
+                    allItems.AddRange(element.BulletList.Items);
+                }
+            }
+
+            if (template.ConceptsSection != null)
+            {
+                foreach (var element in template.ConceptsSection.Elements.Where(e => e.BulletList != null))
+                {
+                    allItems.AddRange(element.BulletList.Items);
+                }
+            }
+
             foreach (var master in template.MasterSections)
             {
                 foreach (var element in master.Elements.Where(e => e.BulletList != null))
@@ -1833,6 +2201,18 @@ namespace WordGenerator.Api.Controllers
                     allBulletLists.Add(element.BulletList);
             }
 
+            if (template.PrefaceSection != null)
+            {
+                foreach (var element in template.PrefaceSection.Elements.Where(e => e.BulletList != null))
+                    allBulletLists.Add(element.BulletList);
+            }
+
+            if (template.ConceptsSection != null)
+            {
+                foreach (var element in template.ConceptsSection.Elements.Where(e => e.BulletList != null))
+                    allBulletLists.Add(element.BulletList);
+            }
+
             foreach (var master in template.MasterSections)
             {
                 foreach (var element in master.Elements.Where(e => e.BulletList != null))
@@ -1871,6 +2251,12 @@ namespace WordGenerator.Api.Controllers
 
             if (template.DocumentSection != null)
                 allElements.AddRange(template.DocumentSection.Elements);
+
+            if (template.PrefaceSection != null)
+                allElements.AddRange(template.PrefaceSection.Elements);
+
+            if (template.ConceptsSection != null)
+                allElements.AddRange(template.ConceptsSection.Elements);
 
             foreach (var master in template.MasterSections)
             {
@@ -1913,6 +2299,18 @@ namespace WordGenerator.Api.Controllers
             if (template.DocumentSection != null)
             {
                 foreach (var element in template.DocumentSection.Elements.Where(e => e.Image != null))
+                    allImages.Add(element.Image);
+            }
+
+            if (template.PrefaceSection != null)
+            {
+                foreach (var element in template.PrefaceSection.Elements.Where(e => e.Image != null))
+                    allImages.Add(element.Image);
+            }
+
+            if (template.ConceptsSection != null)
+            {
+                foreach (var element in template.ConceptsSection.Elements.Where(e => e.Image != null))
                     allImages.Add(element.Image);
             }
 
