@@ -107,6 +107,8 @@ namespace WordGenerator.Api.Application.Services
 
                     body.Append(CreateMasterHeading(masterSection.Title, sectionNumber));
 
+                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
                     foreach (var element in masterSection.Elements.OrderBy(x => x.Order))
                     {
                         RenderElement(body, element, mainPart, ref tableCounterInSection, ref imageCounterInSection, sectionNumber);
@@ -447,7 +449,7 @@ namespace WordGenerator.Api.Application.Services
                     {
                         RenderElement(body, element, mainPart, ref dummy1, ref dummy2, "0");
                     }
-                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+                    //body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
                 }
 
                 // ===== پیش‌گفتار =====
@@ -490,7 +492,11 @@ namespace WordGenerator.Api.Application.Services
                     int tableCounterInSection = 0;
                     int imageCounterInSection = 0;
 
+                    //body.Append(new W.Paragraph(new W.Run(new W.Break())));
+
                     body.Append(CreateMasterHeading(masterSection.Title, sectionNumber));
+
+                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
 
                     foreach (var element in masterSection.Elements.OrderBy(x => x.Order))
                     {
@@ -556,6 +562,15 @@ namespace WordGenerator.Api.Application.Services
             return ms.ToArray();
         }
         #endregion
+
+        private void AddEmptyLines(W.Body body, int count = 3)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                body.Append(new W.Paragraph());
+            }
+        }
+
 
         #region Initialize Numbering for Bullet Lists
 
@@ -2289,13 +2304,22 @@ namespace WordGenerator.Api.Application.Services
 
         private W.Paragraph CreateMasterHeading(string text, string sectionNumber)
         {
+            // ===== محاسبه فاصله برای وسط‌چین عمودی =====
+            // حدود 40% از ارتفاع صفحه (با فرض A4)
+            // مقدار 1440 = 1 اینچ، 4320 = 3 اینچ
+            int spacingBefore = 4320; // حدود 3 اینچ فاصله از بالا
+
             var paragraph = new W.Paragraph(
                 new W.ParagraphProperties(
                     new W.ParagraphStyleId() { Val = "Heading1" },
                     new W.Justification() { Val = W.JustificationValues.Center },
                     new W.BiDi(),
-                    new W.SpacingBetweenLines { After = "240", Before = "240" },
-                    new W.PageBreakBefore()
+                    new W.SpacingBetweenLines
+                    {
+                        After = "0",
+                        Before = spacingBefore.ToString()  // فاصله قبل از عنوان
+                    },
+                    new W.PageBreakBefore()  // صفحه جدید
                 ),
                 new W.Run(
                     new W.RunProperties(
