@@ -19,7 +19,11 @@ namespace WordGenerator.Api.Domain.Entities
         public long? TableId { get; set; }
         public virtual DynamicTable? Table { get; set; }
 
-        // ارتباط با بخش‌ها
+        // برای Bullet List
+        public long? BulletListId { get; set; }
+        public virtual BulletList? BulletList { get; set; }
+
+        // ارتباط با بخش‌های اصلی
         public long? MasterSectionId { get; set; }
         public virtual MasterSection? MasterSection { get; set; }
 
@@ -31,5 +35,21 @@ namespace WordGenerator.Api.Domain.Entities
 
         public long? CoverPageId { get; set; }
         public virtual CoverPageTemplate? CoverPage { get; set; }
+
+        // ===== ارتباط با بخش‌های انتهای سند =====
+        public long? AttachmentSectionId { get; set; }
+        public virtual AttachmentSection? AttachmentSection { get; set; }
+
+        public long? ReferenceSectionId { get; set; }
+        public virtual ReferenceSection? ReferenceSection { get; set; }
+
+        public long? DocumentSectionId { get; set; }
+        public virtual DocumentSection? DocumentSection { get; set; }
+
+        public long? PrefaceSectionId { get; set; }
+        public virtual PrefaceSection? PrefaceSection { get; set; }
+
+        public long? ConceptsSectionId { get; set; }
+        public virtual ConceptsSection? ConceptsSection { get; set; }
     }
 }

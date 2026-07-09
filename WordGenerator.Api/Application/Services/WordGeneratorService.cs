@@ -31,6 +31,7 @@ namespace WordGenerator.Api.Application.Services
         private const string SubHeaderFontSize = "28";
         private const string TableHeaderFontSize = "22";
         private const string CoverTitleFontSize = "32";
+        private const string BulletFontSize = "24";
 
         public WordGeneratorService(AppDbContext context)
         {
@@ -48,64 +49,115 @@ namespace WordGenerator.Api.Application.Services
                 var mainPart = doc.AddMainDocumentPart();
                 mainPart.Document = new W.Document();
                 AddStylesToDocument(mainPart);
+                InitializeNumbering(mainPart);
+
                 var body = new W.Body();
 
-                // Cover Page
+                // ===== Cover Page =====
                 if (document.CoverPage != null)
                 {
                     body.Append(CreateCoverPageFromDto(document.CoverPage));
-
+                    int dummy1 = 0, dummy2 = 0;
                     foreach (var element in document.CoverPage.Elements.OrderBy(x => x.Order))
                     {
-                        RenderElement(body, element, mainPart);
+                        RenderElement(body, element, mainPart, ref dummy1, ref dummy2, "0");
                     }
-
                     body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
                 }
 
-                // Table of Contents
+                // ===== پیش‌گفتار =====
+                if (document.Preface != null && document.Preface.IsActive)
+                {
+                    RenderPrefaceSection(body, document.Preface, mainPart);
+                }
+
+                // ===== مفاهیم =====
+                if (document.Concepts != null && document.Concepts.IsActive)
+                {
+                    RenderConceptsSection(body, document.Concepts, mainPart);
+                }
+
+                // ===== Table of Contents =====
                 if (document.IncludeTableOfContents)
                 {
                     body.Append(CreateHeading("فهرست مطالب", "32"));
                     body.Append(CreateTableOfContents());
                     body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+
+                    body.Append(CreateHeading("فهرست تصاویر", "28"));
+                    body.Append(CreateTableOfFigures());
+                    body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+
+                    body.Append(CreateHeading("فهرست جداول", "28"));
+                    body.Append(CreateTableOfTables());
+                    body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+
                     body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
                 }
 
-                // Master Sections
+                // ===== Master Sections =====
                 int masterCounter = 0;
                 foreach (var masterSection in document.MasterSections.OrderBy(x => x.Order))
                 {
                     masterCounter++;
-                    body.Append(CreateMasterHeading(masterSection.Title, masterCounter.ToString()));
+                    string sectionNumber = masterCounter.ToString();
+
+                    int tableCounterInSection = 0;
+                    int imageCounterInSection = 0;
+
+                    body.Append(CreateMasterHeading(masterSection.Title, sectionNumber));
+
+                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
 
                     foreach (var element in masterSection.Elements.OrderBy(x => x.Order))
                     {
-                        RenderElement(body, element, mainPart);
+                        RenderElement(body, element, mainPart, ref tableCounterInSection, ref imageCounterInSection, sectionNumber);
                     }
 
-                    int subCounter = 0;
                     foreach (var subSection in masterSection.SubSections.OrderBy(x => x.Order))
                     {
-                        subCounter++;
-                        body.Append(CreateSubHeading(subSection.Title, $"{subCounter}-{masterCounter}"));
+                        body.Append(CreateSubHeading(subSection.Title, $"{sectionNumber}-{masterCounter}"));
 
                         foreach (var element in subSection.Elements.OrderBy(x => x.Order))
                         {
-                            RenderElement(body, element, mainPart);
+                            RenderElement(body, element, mainPart, ref tableCounterInSection, ref imageCounterInSection, sectionNumber);
                         }
                     }
                 }
 
-                // Legacy Sections
+                // ===== Legacy Sections =====
                 foreach (var section in document.Sections.OrderBy(x => x.Order))
                 {
-                    body.Append(CreateHeading(section.Title, "32"));
+                    int legacyTableCounter = 0;
+                    int legacyImageCounter = 0;
 
+                    body.Append(CreateHeading(section.Title, "32"));
                     foreach (var element in section.Elements.OrderBy(x => x.Order))
                     {
-                        RenderElement(body, element, mainPart);
+                        RenderElement(body, element, mainPart, ref legacyTableCounter, ref legacyImageCounter, "0");
                     }
+                }
+
+                // ===== بخش‌های انتهای سند =====
+                if (document.Attachments != null && document.Attachments.IsActive)
+                {
+                    int attachTableCounter = 0;
+                    int attachImageCounter = 0;
+                    RenderAttachmentsSection(body, document.Attachments, mainPart, ref attachTableCounter, ref attachImageCounter);
+                }
+
+                if (document.References != null && document.References.IsActive)
+                {
+                    int refTableCounter = 0;
+                    int refImageCounter = 0;
+                    RenderReferencesSection(body, document.References, mainPart, ref refTableCounter, ref refImageCounter);
+                }
+
+                if (document.Documents != null && document.Documents.IsActive)
+                {
+                    int docTableCounter = 0;
+                    int docImageCounter = 0;
+                    RenderDocumentsSection(body, document.Documents, mainPart, ref docTableCounter, ref docImageCounter);
                 }
 
                 mainPart.Document.Append(body);
@@ -115,7 +167,7 @@ namespace WordGenerator.Api.Application.Services
             return ms.ToArray();
         }
 
-        public async Task<byte[]> GenerateAsync(GenerateDocumentRequest request)
+        /*public async Task<byte[]> GenerateAsync(GenerateDocumentRequest request)
         {
             var template = await _context.DocumentTemplates
                 .Include(x => x.CoverPage)
@@ -133,6 +185,10 @@ namespace WordGenerator.Api.Application.Services
                             .ThenInclude(t => t.Rows)
                                 .ThenInclude(r => r.Cells)
                                     .ThenInclude(c => c.Column)
+                .Include(x => x.CoverPage)
+                    .ThenInclude(x => x.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.Elements)
                         .ThenInclude(e => e.Image)
@@ -146,6 +202,10 @@ namespace WordGenerator.Api.Application.Services
                             .ThenInclude(t => t.Rows)
                                 .ThenInclude(r => r.Cells)
                                     .ThenInclude(c => c.Column)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
                 .Include(x => x.MasterSections)
                     .ThenInclude(m => m.SubSections)
                         .ThenInclude(s => s.Elements)
@@ -162,6 +222,11 @@ namespace WordGenerator.Api.Application.Services
                                 .ThenInclude(t => t.Rows)
                                     .ThenInclude(r => r.Cells)
                                         .ThenInclude(c => c.Column)
+                .Include(x => x.MasterSections)
+                    .ThenInclude(m => m.SubSections)
+                        .ThenInclude(s => s.Elements)
+                            .ThenInclude(e => e.BulletList)
+                                .ThenInclude(b => b.Items)
                 .Include(x => x.Sections)
                     .ThenInclude(s => s.Elements)
                         .ThenInclude(e => e.Image)
@@ -175,6 +240,61 @@ namespace WordGenerator.Api.Application.Services
                             .ThenInclude(t => t.Rows)
                                 .ThenInclude(r => r.Cells)
                                     .ThenInclude(c => c.Column)
+                .Include(x => x.Sections)
+                    .ThenInclude(s => s.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
+                .Include(x => x.AttachmentSection)
+                    .ThenInclude(a => a.Elements)
+                        .ThenInclude(e => e.Image)
+                .Include(x => x.AttachmentSection)
+                    .ThenInclude(a => a.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
+                .Include(x => x.AttachmentSection)
+                    .ThenInclude(a => a.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
+                .Include(x => x.AttachmentSection)
+                    .ThenInclude(a => a.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
+                .Include(x => x.ReferenceSection)
+                    .ThenInclude(r => r.Elements)
+                        .ThenInclude(e => e.Image)
+                .Include(x => x.ReferenceSection)
+                    .ThenInclude(r => r.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
+                .Include(x => x.ReferenceSection)
+                    .ThenInclude(r => r.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
+                .Include(x => x.ReferenceSection)
+                    .ThenInclude(r => r.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
+                .Include(x => x.DocumentSection)
+                    .ThenInclude(d => d.Elements)
+                        .ThenInclude(e => e.Image)
+                .Include(x => x.DocumentSection)
+                    .ThenInclude(d => d.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Columns)
+                .Include(x => x.DocumentSection)
+                    .ThenInclude(d => d.Elements)
+                        .ThenInclude(e => e.Table)
+                            .ThenInclude(t => t.Rows)
+                                .ThenInclude(r => r.Cells)
+                                    .ThenInclude(c => c.Column)
+                .Include(x => x.DocumentSection)
+                    .ThenInclude(d => d.Elements)
+                        .ThenInclude(e => e.BulletList)
+                            .ThenInclude(b => b.Items)
                 .FirstAsync(x => x.Id == request.TemplateId);
 
             var selectedMasterSections = template.MasterSections
@@ -194,25 +314,47 @@ namespace WordGenerator.Api.Application.Services
                 var mainPart = doc.AddMainDocumentPart();
                 mainPart.Document = new W.Document();
                 AddStylesToDocument(mainPart);
+                InitializeNumbering(mainPart);
+
                 var body = new W.Body();
 
                 // Cover Page
                 if (template.CoverPage != null)
                 {
                     body.Append(CreateCoverPageFromEntity(template.CoverPage));
-
+                    int dummy1 = 0, dummy2 = 0;
                     foreach (var element in template.CoverPage.Elements.OrderBy(x => x.Order))
                     {
-                        RenderElementFromEntity(body, element, mainPart);
+                        RenderElementFromEntity(body, element, mainPart, ref dummy1, ref dummy2, "0");
                     }
-
                     body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+                }
+
+                // ===== پیش‌گفتار =====
+                if (request.Preface != null && request.Preface.IsActive)
+                {
+                    RenderPrefaceSection(body, request.Preface, mainPart);
+                }
+
+                // ===== مفاهیم =====
+                if (request.Concepts != null && request.Concepts.IsActive)
+                {
+                    RenderConceptsSection(body, request.Concepts, mainPart);
                 }
 
                 // Table of Contents
                 body.Append(CreateHeading("فهرست مطالب", "32"));
                 body.Append(CreateTableOfContents());
                 body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+
+                body.Append(CreateHeading("فهرست تصاویر", "28"));
+                body.Append(CreateTableOfFigures());
+                body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+
+                body.Append(CreateHeading("فهرست جداول", "28"));
+                body.Append(CreateTableOfTables());
+                body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+
                 body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
 
                 // Master Sections
@@ -220,22 +362,25 @@ namespace WordGenerator.Api.Application.Services
                 foreach (var masterSection in selectedMasterSections)
                 {
                     masterCounter++;
-                    body.Append(CreateMasterHeading(masterSection.Title, masterCounter.ToString()));
+                    string sectionNumber = masterCounter.ToString();
+
+                    int tableCounterInSection = 0;
+                    int imageCounterInSection = 0;
+
+                    body.Append(CreateMasterHeading(masterSection.Title, sectionNumber));
 
                     foreach (var element in masterSection.Elements.OrderBy(x => x.Order))
                     {
-                        RenderElementFromEntity(body, element, mainPart);
+                        RenderElementFromEntity(body, element, mainPart, ref tableCounterInSection, ref imageCounterInSection, sectionNumber);
                     }
 
-                    int subCounter = 0;
                     foreach (var subSection in masterSection.SubSections.OrderBy(x => x.Order))
                     {
-                        subCounter++;
-                        body.Append(CreateSubHeading(subSection.Title, $"{subCounter}-{masterCounter}"));
+                        body.Append(CreateSubHeading(subSection.Title, $"{sectionNumber}-{masterCounter}"));
 
                         foreach (var element in subSection.Elements.OrderBy(x => x.Order))
                         {
-                            RenderElementFromEntity(body, element, mainPart);
+                            RenderElementFromEntity(body, element, mainPart, ref tableCounterInSection, ref imageCounterInSection, sectionNumber);
                         }
                     }
                 }
@@ -243,12 +388,36 @@ namespace WordGenerator.Api.Application.Services
                 // Legacy Sections
                 foreach (var section in selectedSections)
                 {
-                    body.Append(CreateHeading(section.Title, "32"));
+                    int legacyTableCounter = 0;
+                    int legacyImageCounter = 0;
 
+                    body.Append(CreateHeading(section.Title, "32"));
                     foreach (var element in section.Elements.OrderBy(x => x.Order))
                     {
-                        RenderElementFromEntity(body, element, mainPart);
+                        RenderElementFromEntity(body, element, mainPart, ref legacyTableCounter, ref legacyImageCounter, "0");
                     }
+                }
+
+                // Final Sections
+                if (template.AttachmentSection != null && template.AttachmentSection.IsActive)
+                {
+                    int attachTableCounter = 0;
+                    int attachImageCounter = 0;
+                    RenderAttachmentsSectionFromEntity(body, template.AttachmentSection, mainPart, ref attachTableCounter, ref attachImageCounter);
+                }
+
+                if (template.ReferenceSection != null && template.ReferenceSection.IsActive)
+                {
+                    int refTableCounter = 0;
+                    int refImageCounter = 0;
+                    RenderReferencesSectionFromEntity(body, template.ReferenceSection, mainPart, ref refTableCounter, ref refImageCounter);
+                }
+
+                if (template.DocumentSection != null && template.DocumentSection.IsActive)
+                {
+                    int docTableCounter = 0;
+                    int docImageCounter = 0;
+                    RenderDocumentsSectionFromEntity(body, template.DocumentSection, mainPart, ref docTableCounter, ref docImageCounter);
                 }
 
                 mainPart.Document.Append(body);
@@ -256,7 +425,7 @@ namespace WordGenerator.Api.Application.Services
             }
 
             return ms.ToArray();
-        }
+        }*/
 
         public async Task<byte[]> GenerateFromDtoAsync(DocumentGenerationDto request)
         {
@@ -267,19 +436,32 @@ namespace WordGenerator.Api.Application.Services
                 var mainPart = doc.AddMainDocumentPart();
                 mainPart.Document = new W.Document();
                 AddStylesToDocument(mainPart);
+                InitializeNumbering(mainPart);
+
                 var body = new W.Body();
 
                 // ========== Cover Page ==========
                 if (request.CoverPage != null)
                 {
                     body.Append(CreateCoverPageFromDto(request.CoverPage));
-
+                    int dummy1 = 0, dummy2 = 0;
                     foreach (var element in request.CoverPage.Elements.OrderBy(x => x.Order))
                     {
-                        RenderElement(body, element, mainPart);
+                        RenderElement(body, element, mainPart, ref dummy1, ref dummy2, "0");
                     }
+                    //body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+                }
 
-                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+                // ===== پیش‌گفتار =====
+                if (request.Preface != null && request.Preface.IsActive)
+                {
+                    RenderPrefaceSection(body, request.Preface, mainPart);
+                }
+
+                // ===== مفاهیم =====
+                if (request.Concepts != null && request.Concepts.IsActive)
+                {
+                    RenderConceptsSection(body, request.Concepts, mainPart);
                 }
 
                 // ========== Table of Contents ==========
@@ -288,6 +470,15 @@ namespace WordGenerator.Api.Application.Services
                     body.Append(CreateHeading("فهرست مطالب", "32"));
                     body.Append(CreateTableOfContents());
                     body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+
+                    body.Append(CreateHeading("فهرست تصاویر", "28"));
+                    body.Append(CreateTableOfFigures());
+                    body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+
+                    body.Append(CreateHeading("فهرست جداول", "28"));
+                    body.Append(CreateTableOfTables());
+                    body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
+
                     body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
                 }
 
@@ -296,22 +487,29 @@ namespace WordGenerator.Api.Application.Services
                 foreach (var masterSection in request.MasterSections.OrderBy(x => x.Order))
                 {
                     masterCounter++;
-                    body.Append(CreateMasterHeading(masterSection.Title, masterCounter.ToString()));
+                    string sectionNumber = masterCounter.ToString();
+
+                    int tableCounterInSection = 0;
+                    int imageCounterInSection = 0;
+
+                    //body.Append(new W.Paragraph(new W.Run(new W.Break())));
+
+                    body.Append(CreateMasterHeading(masterSection.Title, sectionNumber));
+
+                    body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
 
                     foreach (var element in masterSection.Elements.OrderBy(x => x.Order))
                     {
-                        RenderElement(body, element, mainPart);
+                        RenderElement(body, element, mainPart, ref tableCounterInSection, ref imageCounterInSection, sectionNumber);
                     }
 
-                    int subCounter = 0;
                     foreach (var subSection in masterSection.SubSections.OrderBy(x => x.Order))
                     {
-                        subCounter++;
-                        body.Append(CreateSubHeading(subSection.Title, $"{subCounter}-{masterCounter}"));
+                        body.Append(CreateSubHeading(subSection.Title, $"{sectionNumber}-{masterCounter}"));
 
                         foreach (var element in subSection.Elements.OrderBy(x => x.Order))
                         {
-                            RenderElement(body, element, mainPart);
+                            RenderElement(body, element, mainPart, ref tableCounterInSection, ref imageCounterInSection, sectionNumber);
                         }
                     }
                 }
@@ -319,17 +517,40 @@ namespace WordGenerator.Api.Application.Services
                 // ========== Legacy Sections ==========
                 foreach (var section in request.Sections.OrderBy(x => x.Order))
                 {
-                    body.Append(CreateHeading(section.Title, "32"));
+                    int legacyTableCounter = 0;
+                    int legacyImageCounter = 0;
 
+                    body.Append(CreateHeading(section.Title, "32"));
                     foreach (var element in section.Elements.OrderBy(x => x.Order))
                     {
-                        RenderElement(body, element, mainPart);
+                        RenderElement(body, element, mainPart, ref legacyTableCounter, ref legacyImageCounter, "0");
                     }
+                }
+
+                // ========== بخش‌های انتهای سند ==========
+                if (request.Attachments != null && request.Attachments.IsActive)
+                {
+                    int attachTableCounter = 0;
+                    int attachImageCounter = 0;
+                    RenderAttachmentsSection(body, request.Attachments, mainPart, ref attachTableCounter, ref attachImageCounter);
+                }
+
+                if (request.References != null && request.References.IsActive)
+                {
+                    int refTableCounter = 0;
+                    int refImageCounter = 0;
+                    RenderReferencesSection(body, request.References, mainPart, ref refTableCounter, ref refImageCounter);
+                }
+
+                if (request.Documents != null && request.Documents.IsActive)
+                {
+                    int docTableCounter = 0;
+                    int docImageCounter = 0;
+                    RenderDocumentsSection(body, request.Documents, mainPart, ref docTableCounter, ref docImageCounter);
                 }
 
                 mainPart.Document.Append(body);
 
-                // ========== اضافه کردن Header با روش جدید ==========
                 if (request.PageHeader != null && request.PageHeader.IsActive)
                 {
                     AddHeaderToDocument(mainPart, request.PageHeader);
@@ -342,14 +563,90 @@ namespace WordGenerator.Api.Application.Services
         }
         #endregion
 
+        private void AddEmptyLines(W.Body body, int count = 3)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                body.Append(new W.Paragraph());
+            }
+        }
+
+
+        #region Initialize Numbering for Bullet Lists
+
+        private void InitializeNumbering(MainDocumentPart mainPart)
+        {
+            var numberingPart = mainPart.NumberingDefinitionsPart;
+            if (numberingPart == null)
+            {
+                numberingPart = mainPart.AddNewPart<NumberingDefinitionsPart>();
+                numberingPart.Numbering = new W.Numbering();
+                numberingPart.Numbering.Save();
+            }
+
+            var existingAbstractNum = numberingPart.Numbering
+                .Elements<W.AbstractNum>()
+                .FirstOrDefault(a => a.AbstractNumberId != null && a.AbstractNumberId.Value == 1);
+
+            if (existingAbstractNum != null)
+                return;
+
+            var abstractNum = new W.AbstractNum() { AbstractNumberId = 1 };
+
+            var multiLevelType = new W.MultiLevelType();
+            multiLevelType.SetAttribute(new OpenXmlAttribute("val", null, "bullet"));
+            abstractNum.Append(multiLevelType);
+
+            var level0 = new W.Level() { LevelIndex = 0 };
+            level0.Append(new W.StartNumberingValue() { Val = 1 });
+            var numFormat0 = new W.NumberingFormat();
+            numFormat0.SetAttribute(new OpenXmlAttribute("val", null, "bullet"));
+            level0.Append(numFormat0);
+            level0.Append(new W.LevelText() { Val = "❖" });
+            level0.Append(new W.LevelJustification() { Val = W.LevelJustificationValues.Left });
+            level0.Append(new W.ParagraphProperties(new W.Indentation() { Left = "720", Hanging = "360" }));
+            level0.Append(new W.RunProperties(new W.RunFonts() { Ascii = "Segoe UI Symbol", HighAnsi = "Segoe UI Symbol", ComplexScript = "Segoe UI Symbol" }));
+            abstractNum.Append(level0);
+
+            var level1 = new W.Level() { LevelIndex = 1 };
+            level1.Append(new W.StartNumberingValue() { Val = 1 });
+            var numFormat1 = new W.NumberingFormat();
+            numFormat1.SetAttribute(new OpenXmlAttribute("val", null, "bullet"));
+            level1.Append(numFormat1);
+            level1.Append(new W.LevelText() { Val = "o" });
+            level1.Append(new W.LevelJustification() { Val = W.LevelJustificationValues.Left });
+            level1.Append(new W.ParagraphProperties(new W.Indentation() { Left = "1440", Hanging = "360" }));
+            level1.Append(new W.RunProperties(new W.RunFonts() { Ascii = "Symbol", HighAnsi = "Symbol", ComplexScript = "Symbol" }));
+            abstractNum.Append(level1);
+
+            var level2 = new W.Level() { LevelIndex = 2 };
+            level2.Append(new W.StartNumberingValue() { Val = 1 });
+            var numFormat2 = new W.NumberingFormat();
+            numFormat2.SetAttribute(new OpenXmlAttribute("val", null, "bullet"));
+            level2.Append(numFormat2);
+            level2.Append(new W.LevelText() { Val = "▪" });
+            level2.Append(new W.LevelJustification() { Val = W.LevelJustificationValues.Left });
+            level2.Append(new W.ParagraphProperties(new W.Indentation() { Left = "2160", Hanging = "360" }));
+            level2.Append(new W.RunProperties(new W.RunFonts() { Ascii = "Symbol", HighAnsi = "Symbol", ComplexScript = "Symbol" }));
+            abstractNum.Append(level2);
+
+            numberingPart.Numbering.Append(abstractNum);
+
+            var num = new W.NumberingInstance() { NumberID = 1 };
+            num.Append(new W.AbstractNumId() { Val = 1 });
+            numberingPart.Numbering.Append(num);
+            numberingPart.Numbering.Save();
+        }
+
+        #endregion
+
         #region Page Header
+
         private void AddHeaderToDocument(MainDocumentPart mainPart, PageHeaderDto pageHeader)
         {
-            // ========== 1. ایجاد Header Part ==========
             var headerPart = mainPart.AddNewPart<HeaderPart>();
             var header = new W.Header();
 
-            // ========== 2. ایجاد جدول ==========
             var table = new W.Table();
 
             var tableProps = new W.TableProperties(
@@ -372,7 +669,7 @@ namespace WordGenerator.Api.Application.Services
                 new W.TableRowHeight { Val = 500, HeightType = W.HeightRuleValues.AtLeast }
             ));
 
-            // ========== ستون چپ (لوگوها) ==========
+            // ===== ستون چپ (لوگوها) =====
             var leftCell = new W.TableCell();
             var leftCellProps = new W.TableCellProperties(
                 new W.TableCellWidth { Type = W.TableWidthUnitValues.Pct, Width = "50" },
@@ -388,38 +685,14 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
-            // لوگوها - با فاصله بین آنها
             var logos = pageHeader.Logos?.OrderBy(x => x.Order).ToList() ?? new List<HeaderLogoDto>();
 
-            // ========== اضافه کردن لوگو اول ==========
-            if (logos.Any())
+            // ===== اضافه کردن لوگوها با فاصله =====
+            for (int i = 0; i < logos.Count; i++)
             {
-                var firstLogo = logos[0];
-                var firstImageDto = new ImageItemDto
-                {
-                    FileName = firstLogo.FileName,
-                    Width = firstLogo.Width > 0 ? firstLogo.Width : 60,
-                    Height = firstLogo.Height > 0 ? firstLogo.Height : 40,
-                    ImageBase64 = firstLogo.ImageBase64
-                };
-                InsertImageToHeader(leftParagraph, firstImageDto, mainPart, headerPart);
-            }
-
-            // ========== اضافه کردن بقیه لوگوها با فاصله ==========
-            for (int i = 1; i < logos.Count; i++)
-            {
-                // ========== فاصله بین لوگو قبلی و این لوگو ==========
-                var spaceRun = new W.Run();
-                var spaceRunProps = new W.RunProperties();
-                spaceRun.AppendChild(spaceRunProps);
-
-                var spaceText = new W.Text("     ");  // ۵ فاصله
-                spaceText.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
-                spaceRun.AppendChild(spaceText);
-                leftParagraph.AppendChild(spaceRun);
-
-                // ========== اضافه کردن لوگو ==========
                 var logo = logos[i];
+
+                // ===== اضافه کردن لوگو =====
                 var imageDto = new ImageItemDto
                 {
                     FileName = logo.FileName,
@@ -428,12 +701,27 @@ namespace WordGenerator.Api.Application.Services
                     ImageBase64 = logo.ImageBase64
                 };
                 InsertImageToHeader(leftParagraph, imageDto, mainPart, headerPart);
+
+                // ===== اگر آخرین لوگو نیست، فاصله اضافه کن =====
+                if (i < logos.Count - 1)
+                {
+                    // ===== اضافه کردن فاصله بین لوگوها =====
+                    var spaceRun = new W.Run();
+                    var spaceRunProps = new W.RunProperties();
+                    spaceRun.AppendChild(spaceRunProps);
+
+                    // ۵ فاصله (یا میتونی بیشتر/کمتر کنی)
+                    var spaceText = new W.Text("     ");
+                    spaceText.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
+                    spaceRun.AppendChild(spaceText);
+                    leftParagraph.AppendChild(spaceRun);
+                }
             }
 
             leftCell.Append(leftParagraph);
             row.Append(leftCell);
 
-            // ========== ستون راست (متن هدر) ==========
+            // ===== ستون راست (متن هدر) =====
             var rightCell = new W.TableCell();
             var rightCellProps = new W.TableCellProperties(
                 new W.TableCellWidth { Type = W.TableWidthUnitValues.Pct, Width = "50" },
@@ -468,7 +756,6 @@ namespace WordGenerator.Api.Application.Services
             header.Append(table);
             headerPart.Header = header;
 
-            // ========== اتصال Header به سند ==========
             var headerReference = new W.HeaderReference
             {
                 Id = mainPart.GetIdOfPart(headerPart),
@@ -494,8 +781,6 @@ namespace WordGenerator.Api.Application.Services
 
             sectionProperties.PrependChild(headerReference);
         }
-
-        // ========== متد درج تصویر در هدر ==========
         private void InsertImageToHeader(W.Paragraph paragraph, ImageItemDto imageDto, MainDocumentPart mainPart, HeaderPart headerPart)
         {
             if (string.IsNullOrEmpty(imageDto.ImageBase64))
@@ -503,16 +788,45 @@ namespace WordGenerator.Api.Application.Services
 
             try
             {
-                var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+                Console.WriteLine($"=== Inserting Header Image: {imageDto.FileName} ===");
+                Console.WriteLine($"Base64 Length: {imageDto.ImageBase64?.Length ?? 0}");
 
-                var imagePartType = ImagePartType.Jpeg;
-                if (imageBytes.Length > 4)
+                var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+                Console.WriteLine($"Image Bytes Length: {imageBytes.Length}");
+
+                if (imageBytes == null || imageBytes.Length == 0)
                 {
-                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
-                        imagePartType = ImagePartType.Png;
-                    else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
-                        imagePartType = ImagePartType.Jpeg;
+                    Console.WriteLine("ERROR: Image bytes is null or empty");
+                    return;
                 }
+
+                // بررسی اینکه تصویر قابل باز شدنه
+                //try
+                //{
+                //    using (var ms = new MemoryStream(imageBytes))
+                //    {
+                //        using (var img = System.Drawing.Image.FromStream(ms))
+                //        {
+                //            Console.WriteLine($"Image loaded successfully: {img.Width}x{img.Height}");
+                //        }
+                //    }
+                //}
+                //catch (Exception imgEx)
+                //{
+                //    Console.WriteLine($"ERROR: Image is corrupted - {imgEx.Message}");
+                //    var errorRun = new W.Run(
+                //        new W.RunProperties(
+                //            new W.FontSize { Val = "16" },
+                //            new W.Color { Val = "FF6600" }
+                //        ),
+                //        new W.Text($"[تصویر خراب: {imageDto.FileName}]")
+                //    );
+                //    paragraph.AppendChild(errorRun);
+                //    return;
+                //}
+
+                var imagePartType = DetectImagePartType(imageBytes);
+                Console.WriteLine($"Image Type: {imagePartType}");
 
                 var imagePart = headerPart.AddImagePart(imagePartType);
                 using (var stream = new MemoryStream(imageBytes))
@@ -520,94 +834,283 @@ namespace WordGenerator.Api.Application.Services
                     imagePart.FeedData(stream);
                 }
                 var imagePartId = headerPart.GetIdOfPart(imagePart);
+                Console.WriteLine($"Image Part ID: {imagePartId}");
 
-                long cx = (long)(imageDto.Width * 9525);
-                long cy = (long)(imageDto.Height * 9525);
+                if (string.IsNullOrEmpty(imagePartId))
+                {
+                    Console.WriteLine("ERROR: ImagePartId is null or empty");
+                    return;
+                }
+
+                // محاسبه ابعاد
+                long cx, cy;
+
+                if (imageDto.Width <= 0)
+                {
+                    imageDto.Width = 60;
+                    imageDto.Height = (int)(imageDto.Width * 0.75);
+                }
+
+                //if (imageDto.Height <= 0)
+                //{
+                //    try
+                //    {
+                //        using (var ms = new MemoryStream(imageBytes))
+                //        {
+                //            using (var img = System.Drawing.Image.FromStream(ms))
+                //            {
+                //                var ratio = (double)img.Width / img.Height;
+                //                imageDto.Height = (int)(imageDto.Width / ratio);
+                //            }
+                //        }
+                //    }
+                //    catch
+                //    {
+                //    }
+                //}
+
+                cx = (long)(imageDto.Width * 9525);
+                cy = (long)(imageDto.Height * 9525);
+
+                long maxSize = 200 * 9525;
+                if (cx > maxSize)
+                {
+                    cy = (long)(cy * ((double)maxSize / cx));
+                    cx = maxSize;
+                }
+                if (cy > maxSize)
+                {
+                    cx = (long)(cx * ((double)maxSize / cy));
+                    cy = maxSize;
+                }
 
                 if (cx < 1) cx = 9525;
                 if (cy < 1) cy = 9525;
 
-                var run = new W.Run();
+                uint uniqueId = _imageId++;
+                Console.WriteLine($"Unique Image ID: {uniqueId}");
 
-                var drawing = new W.Drawing(
-                    new DW.Inline(
-                        new DW.Extent() { Cx = cx, Cy = cy },
-                            new DW.EffectExtent()
-                            {
-                                LeftEdge = 0L,
-                                TopEdge = 0L,
-                                RightEdge = 100000L, // فاصله سمت راست لوگو
-                                BottomEdge = 0L
-                            },
-                        new DW.DocProperties()
-                        {
-                            Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks),
-                            Name = imageDto.FileName ?? "Logo"
-                        },
-                        new DW.NonVisualGraphicFrameDrawingProperties(
-                            new D.GraphicFrameLocks() { NoChangeAspect = true }
-                        ),
-                        new D.Graphic(
-                            new D.GraphicData(
-                                new PIC.Picture(
-                                    new PIC.NonVisualPictureProperties(
-                                        new PIC.NonVisualDrawingProperties()
-                                        {
-                                            Id = (UInt32Value)0U,
-                                            Name = imageDto.FileName ?? "logo.jpg"
-                                        },
-                                        new PIC.NonVisualPictureDrawingProperties()
-                                    ),
-                                    new PIC.BlipFill(
-                                        new D.Blip()
-                                        {
-                                            Embed = imagePartId
-                                        },
-                                        new D.Stretch(
-                                            new D.FillRectangle()
-                                        )
-                                    ),
-                                    new PIC.ShapeProperties(
-                                        new D.Transform2D(
-                                            new D.Offset() { X = 0L, Y = 0L },
-                                            new D.Extents()
-                                            {
-                                                Cx = cx,
-                                                Cy = cy
-                                            }
-                                        ),
-                                        new D.PresetGeometry(
-                                            new D.AdjustValueList()
-                                        )
-                                        { Preset = D.ShapeTypeValues.Rectangle }
-                                    )
-                                )
-                            )
-                            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
-                        )
-                    )
-                );
+                // ===== ایجاد Run با Spacing =====
+                var imageRun = new W.Run();
 
-                run.AppendChild(drawing);
-                paragraph.AppendChild(run);
+                // ===== اضافه کردن Spacing به RunProperties =====
+                var runProps = new W.RunProperties();
+                // Spacing به معنی فاصله بین Runها - مقدار 40 معادل 4px
+                runProps.AppendChild(new W.Spacing() { Val = 40 });
+                imageRun.AppendChild(runProps);
+
+                var drawing = new W.Drawing();
+
+                var inline = new DW.Inline();
+                inline.AppendChild(new DW.Extent() { Cx = cx, Cy = cy });
+                inline.AppendChild(new DW.EffectExtent()
+                {
+                    LeftEdge = 0L,
+                    TopEdge = 0L,
+                    RightEdge = 100000L,
+                    BottomEdge = 0L
+                });
+                inline.AppendChild(new DW.DocProperties()
+                {
+                    Id = (UInt32Value)uniqueId,
+                    Name = imageDto.FileName ?? $"Logo_{uniqueId}",
+                    Description = ""
+                });
+
+                var nvGraphicFramePr = new DW.NonVisualGraphicFrameDrawingProperties();
+                nvGraphicFramePr.AppendChild(new D.GraphicFrameLocks() { NoChangeAspect = true });
+                inline.AppendChild(nvGraphicFramePr);
+
+                var graphic = new D.Graphic();
+                var graphicData = new D.GraphicData()
+                {
+                    Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture"
+                };
+
+                var picture = new PIC.Picture();
+
+                var nvPicPr = new PIC.NonVisualPictureProperties();
+                nvPicPr.AppendChild(new PIC.NonVisualDrawingProperties()
+                {
+                    Id = (UInt32Value)0U,
+                    Name = imageDto.FileName ?? $"Logo_{uniqueId}",
+                    Description = ""
+                });
+                nvPicPr.AppendChild(new PIC.NonVisualPictureDrawingProperties());
+                picture.AppendChild(nvPicPr);
+
+                var blipFill = new PIC.BlipFill();
+                blipFill.AppendChild(new D.Blip() { Embed = imagePartId });
+                blipFill.AppendChild(new D.Stretch(new D.FillRectangle()));
+                picture.AppendChild(blipFill);
+
+                var spPr = new PIC.ShapeProperties();
+                var xfrm = new D.Transform2D();
+                xfrm.AppendChild(new D.Offset() { X = 0L, Y = 0L });
+                xfrm.AppendChild(new D.Extents() { Cx = cx, Cy = cy });
+                spPr.AppendChild(xfrm);
+                spPr.AppendChild(new D.PresetGeometry(new D.AdjustValueList())
+                {
+                    Preset = D.ShapeTypeValues.Rectangle
+                });
+                picture.AppendChild(spPr);
+
+                graphicData.AppendChild(picture);
+                graphic.AppendChild(graphicData);
+                inline.AppendChild(graphic);
+
+                drawing.AppendChild(inline);
+                imageRun.AppendChild(drawing);
+                paragraph.AppendChild(imageRun);
+
+                Console.WriteLine($"✅ Header Image inserted successfully: {imageDto.FileName}");
             }
             catch (Exception ex)
             {
-                var run = new W.Run(
-                    new W.RunProperties(
-                        new W.FontSize { Val = "16" },
-                        new W.Color { Val = "FF6600" }
-                    ),
+                Console.WriteLine($"ERROR in InsertImageToHeader: {ex.Message}");
+                Console.WriteLine($"StackTrace: {ex.StackTrace}");
+
+                var errorRun = new W.Run(
+                    new W.RunProperties(new W.FontSize { Val = "16" }, new W.Color { Val = "FF6600" }),
                     new W.Text($"[{imageDto.FileName ?? "لوگو"}]")
                 );
-                paragraph.AppendChild(run);
+                paragraph.AppendChild(errorRun);
             }
         }
         #endregion
 
         #region Element Rendering Methods
 
-        private void RenderElement(W.Body body, ContentElementDto element, MainDocumentPart mainPart)
+        private void RenderElement(W.Body body, ContentElementDto element, MainDocumentPart mainPart,
+            ref int tableCounter, ref int imageCounter, string sectionNumber = "1")
+        {
+            switch (element.Type?.ToLower())
+            {
+                case "paragraph":
+                    if (!string.IsNullOrEmpty(element.Text))
+                        body.Append(CreateParagraph(element.Text));
+                    break;
+
+                case "image":
+                    if (element.Image != null)
+                    {
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Center },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, element.Image, mainPart);
+                        body.Append(imageParagraph);
+
+                        imageCounter++;
+                        if (!string.IsNullOrEmpty(element.Image.Caption))
+                        {
+                            var caption = CreateImageCaption(element.Image.Caption, sectionNumber, imageCounter);
+                            if (caption != null)
+                                body.Append(caption);
+                        }
+                    }
+                    break;
+
+                case "table":
+                    if (element.Table != null)
+                    {
+                        tableCounter++;
+                        if (!string.IsNullOrEmpty(element.Table.Title))
+                        {
+                            var caption = CreateTableCaption(element.Table.Title, sectionNumber, tableCounter);
+                            body.Append(caption);
+                        }
+
+                        var table = CreateTableFromDto(element.Table);
+                        body.Append(table);
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                    }
+                    break;
+
+                case "bulletlist":
+                    if (element.BulletList != null)
+                    {
+                        var bulletParagraphs = CreateBulletList(element.BulletList);
+                        foreach (var paragraph in bulletParagraphs)
+                        {
+                            body.Append(paragraph);
+                        }
+                    }
+                    break;
+            }
+        }
+
+        private void RenderElementFromEntity(W.Body body, ContentElement element, MainDocumentPart mainPart,
+            ref int tableCounter, ref int imageCounter, string sectionNumber = "1")
+        {
+            switch (element.Type)
+            {
+                case ContentElementType.Paragraph:
+                    if (!string.IsNullOrEmpty(element.ParagraphText))
+                        body.Append(CreateParagraph(element.ParagraphText));
+                    break;
+
+                case ContentElementType.Image:
+                    if (element.Image != null)
+                    {
+                        var imageDto = MapImageToDto(element.Image);
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Center },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, imageDto, mainPart);
+                        body.Append(imageParagraph);
+
+                        imageCounter++;
+                        if (!string.IsNullOrEmpty(imageDto.Caption))
+                        {
+                            var caption = CreateImageCaption(imageDto.Caption, sectionNumber, imageCounter);
+                            if (caption != null)
+                                body.Append(caption);
+                        }
+                    }
+                    break;
+
+                case ContentElementType.Table:
+                    if (element.Table != null)
+                    {
+                        var tableDto = MapTableToDto(element.Table);
+
+                        tableCounter++;
+                        if (!string.IsNullOrEmpty(tableDto.Title))
+                        {
+                            var caption = CreateTableCaption(tableDto.Title, sectionNumber, tableCounter);
+                            body.Append(caption);
+                        }
+
+                        var table = CreateTableFromDto(tableDto);
+                        body.Append(table);
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                    }
+                    break;
+
+                case ContentElementType.BulletList:
+                    if (element.BulletList != null)
+                    {
+                        var bulletListDto = MapBulletListToDto(element.BulletList);
+                        var bulletParagraphs = CreateBulletList(bulletListDto);
+                        foreach (var paragraph in bulletParagraphs)
+                        {
+                            body.Append(paragraph);
+                        }
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// رندر المان بدون کپشن (برای پیش‌گفتار و مفاهیم)
+        /// </summary>
+        private void RenderElementWithoutCaption(W.Body body, ContentElementDto element, MainDocumentPart mainPart)
         {
             switch (element.Type?.ToLower())
             {
@@ -633,14 +1136,29 @@ namespace WordGenerator.Api.Application.Services
                 case "table":
                     if (element.Table != null)
                     {
-                        body.Append(CreateTableFromDto(element.Table));
+                        var table = CreateTableFromDto(element.Table);
+                        body.Append(table);
                         body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                    }
+                    break;
+
+                case "bulletlist":
+                    if (element.BulletList != null)
+                    {
+                        var bulletParagraphs = CreateBulletList(element.BulletList);
+                        foreach (var paragraph in bulletParagraphs)
+                        {
+                            body.Append(paragraph);
+                        }
                     }
                     break;
             }
         }
 
-        private void RenderElementFromEntity(W.Body body, ContentElement element, MainDocumentPart mainPart)
+        /// <summary>
+        /// رندر المان از Entity بدون کپشن
+        /// </summary>
+        private void RenderElementFromEntityWithoutCaption(W.Body body, ContentElement element, MainDocumentPart mainPart)
         {
             switch (element.Type)
             {
@@ -668,8 +1186,21 @@ namespace WordGenerator.Api.Application.Services
                     if (element.Table != null)
                     {
                         var tableDto = MapTableToDto(element.Table);
-                        body.Append(CreateTableFromDto(tableDto));
+                        var table = CreateTableFromDto(tableDto);
+                        body.Append(table);
                         body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                    }
+                    break;
+
+                case ContentElementType.BulletList:
+                    if (element.BulletList != null)
+                    {
+                        var bulletListDto = MapBulletListToDto(element.BulletList);
+                        var bulletParagraphs = CreateBulletList(bulletListDto);
+                        foreach (var paragraph in bulletParagraphs)
+                        {
+                            body.Append(paragraph);
+                        }
                     }
                     break;
             }
@@ -677,7 +1208,844 @@ namespace WordGenerator.Api.Application.Services
 
         #endregion
 
+        #region Caption Methods
+
+        private W.Paragraph CreateTableCaption(string title, string sectionNumber, int tableNumberInSection)
+        {
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Center },
+                    new W.SpacingBetweenLines { After = "120", Before = "120" }
+                )
+            );
+
+            string captionNumber = $"{sectionNumber}-{tableNumberInSection}";
+
+            var run = new W.Run();
+            var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            var fieldCode = new W.FieldCode { Text = $"SEQ Table_{sectionNumber} \\* ARABIC" };
+            var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
+            var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
+
+            run.Append(fieldChar1);
+            run.Append(fieldCode);
+            run.Append(fieldChar2);
+            run.Append(fieldChar3);
+
+            var captionRun = new W.Run(
+                new W.RunProperties(
+                    new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                    new W.FontSize { Val = "24" }
+                ),
+                new W.Text($"جدول {captionNumber}: {title}")
+            );
+
+            paragraph.Append(run);
+            paragraph.Append(captionRun);
+
+            var bookmarkStart = new W.BookmarkStart { Id = $"Table_{sectionNumber}_{tableNumberInSection}", Name = $"Table_{sectionNumber}_{tableNumberInSection}" };
+            var bookmarkEnd = new W.BookmarkEnd { Id = $"Table_{sectionNumber}_{tableNumberInSection}" };
+            paragraph.InsertAt(bookmarkStart, 0);
+            paragraph.Append(bookmarkEnd);
+
+            return paragraph;
+        }
+
+        private W.Paragraph CreateImageCaption(string caption, string sectionNumber, int imageNumberInSection)
+        {
+            if (string.IsNullOrEmpty(caption))
+                return null;
+
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Center },
+                    new W.SpacingBetweenLines { After = "120", Before = "120" }
+                )
+            );
+
+            string captionNumber = $"{sectionNumber}-{imageNumberInSection}";
+
+            var run = new W.Run();
+            var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            var fieldCode = new W.FieldCode { Text = $"SEQ Figure_{sectionNumber} \\* ARABIC" };
+            var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
+            var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
+
+            run.Append(fieldChar1);
+            run.Append(fieldCode);
+            run.Append(fieldChar2);
+            run.Append(fieldChar3);
+
+            var captionRun = new W.Run(
+                new W.RunProperties(
+                    new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                    new W.FontSize { Val = "24" }
+                ),
+                new W.Text($"تصویر {captionNumber}: {caption}")
+            );
+
+            paragraph.Append(run);
+            paragraph.Append(captionRun);
+
+            var bookmarkStart = new W.BookmarkStart { Id = $"Figure_{sectionNumber}_{imageNumberInSection}", Name = $"Figure_{sectionNumber}_{imageNumberInSection}" };
+            var bookmarkEnd = new W.BookmarkEnd { Id = $"Figure_{sectionNumber}_{imageNumberInSection}" };
+            paragraph.InsertAt(bookmarkStart, 0);
+            paragraph.Append(bookmarkEnd);
+
+            return paragraph;
+        }
+
+        #endregion
+
+        #region Table of Figures and Tables
+
+        private W.Paragraph CreateTableOfFigures()
+        {
+            var paragraph = new W.Paragraph();
+            var paraProps = new W.ParagraphProperties(
+                new W.ParagraphStyleId { Val = "Normal" },
+                new W.Justification { Val = W.JustificationValues.Left },
+                new W.BiDi(),
+                new W.SpacingBetweenLines { After = "120" }
+            );
+            paragraph.Append(paraProps);
+
+            var run = new W.Run();
+            var fieldCode = new W.FieldCode { Text = "TOC \\c \"Figure\" \\h \\* MERGEFORMAT" };
+            var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
+            var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
+            var placeholderText = new W.Text("【اینجا کلیک کرده و F9 بزنید】");
+
+            run.Append(fieldChar1);
+            run.Append(fieldCode);
+            run.Append(fieldChar2);
+            run.Append(placeholderText);
+            run.Append(fieldChar3);
+
+            paragraph.Append(run);
+            return paragraph;
+        }
+
+        private W.Paragraph CreateTableOfTables()
+        {
+            var paragraph = new W.Paragraph();
+            var paraProps = new W.ParagraphProperties(
+                new W.ParagraphStyleId { Val = "Normal" },
+                new W.Justification { Val = W.JustificationValues.Left },
+                new W.BiDi(),
+                new W.SpacingBetweenLines { After = "120" }
+            );
+            paragraph.Append(paraProps);
+
+            var run = new W.Run();
+            var fieldCode = new W.FieldCode { Text = "TOC \\c \"Table\" \\h \\* MERGEFORMAT" };
+            var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
+            var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
+            var placeholderText = new W.Text("【اینجا کلیک کرده و F9 بزنید】");
+
+            run.Append(fieldChar1);
+            run.Append(fieldCode);
+            run.Append(fieldChar2);
+            run.Append(placeholderText);
+            run.Append(fieldChar3);
+
+            paragraph.Append(run);
+            return paragraph;
+        }
+
+        #endregion
+
+        #region Preface and Concepts Sections
+
+        /// <summary>
+        /// ایجاد بخش پیش‌گفتار - راست‌چین (بدون کپشن)
+        /// </summary>
+        private void RenderPrefaceSection(W.Body body, PrefaceSectionDto preface, MainDocumentPart mainPart)
+        {
+            if (preface == null || !preface.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.ParagraphStyleId() { Val = "Heading1" },
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts
+                        {
+                            Ascii = PersianFont,
+                            HighAnsi = PersianFont,
+                            ComplexScript = PersianFont
+                        },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(preface.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            foreach (var element in preface.Elements.OrderBy(x => x.Order))
+            {
+                RenderElementWithoutCaption(body, element, mainPart);
+            }
+        }
+
+        /// <summary>
+        /// ایجاد بخش مفاهیم - راست‌چین (بدون کپشن)
+        /// </summary>
+        private void RenderConceptsSection(W.Body body, ConceptsSectionDto concepts, MainDocumentPart mainPart)
+        {
+            if (concepts == null || !concepts.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.ParagraphStyleId() { Val = "Heading1" },
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts
+                        {
+                            Ascii = PersianFont,
+                            HighAnsi = PersianFont,
+                            ComplexScript = PersianFont
+                        },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(concepts.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            foreach (var element in concepts.Elements.OrderBy(x => x.Order))
+            {
+                RenderElementWithoutCaption(body, element, mainPart);
+            }
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+        }
+
+        #endregion
+
+        #region Final Sections
+
+        private void RenderAttachmentsSection(W.Body body, AttachmentSectionDto attachments, MainDocumentPart mainPart, ref int tableCounter, ref int imageCounter)
+        {
+            if (attachments == null || !attachments.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(attachments.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            string sectionNumber = "الف";
+            foreach (var element in attachments.Elements.OrderBy(x => x.Order))
+            {
+                RenderElement(body, element, mainPart, ref tableCounter, ref imageCounter, sectionNumber);
+            }
+        }
+
+        private void RenderAttachmentsSectionFromEntity(W.Body body, AttachmentSection attachments, MainDocumentPart mainPart, ref int tableCounter, ref int imageCounter)
+        {
+            if (attachments == null || !attachments.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(attachments.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            string sectionNumber = "الف";
+            foreach (var element in attachments.Elements.OrderBy(x => x.Order))
+            {
+                RenderElementFromEntity(body, element, mainPart, ref tableCounter, ref imageCounter, sectionNumber);
+            }
+        }
+
+        private void RenderReferencesSection(W.Body body, ReferenceSectionDto references, MainDocumentPart mainPart, ref int tableCounter, ref int imageCounter)
+        {
+            if (references == null || !references.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(references.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            string sectionNumber = "ب";
+            foreach (var element in references.Elements.OrderBy(x => x.Order))
+            {
+                RenderElementWithLeftAlignment(body, element, mainPart, ref tableCounter, ref imageCounter, sectionNumber);
+            }
+        }
+
+        private void RenderReferencesSectionFromEntity(W.Body body, ReferenceSection references, MainDocumentPart mainPart, ref int tableCounter, ref int imageCounter)
+        {
+            if (references == null || !references.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(references.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            string sectionNumber = "ب";
+            foreach (var element in references.Elements.OrderBy(x => x.Order))
+            {
+                var elementDto = MapContentElementToDto(element);
+                RenderElementWithLeftAlignment(body, elementDto, mainPart, ref tableCounter, ref imageCounter, sectionNumber);
+            }
+        }
+
+        private void RenderElementWithLeftAlignment(W.Body body, ContentElementDto element, MainDocumentPart mainPart,
+            ref int tableCounter, ref int imageCounter, string sectionNumber = "1")
+        {
+            switch (element.Type?.ToLower())
+            {
+                case "paragraph":
+                    if (!string.IsNullOrEmpty(element.Text))
+                        body.Append(CreateLeftAlignedParagraph(element.Text));
+                    break;
+
+                case "bulletlist":
+                    if (element.BulletList != null)
+                    {
+                        var bulletParagraphs = CreateLeftAlignedBulletList(element.BulletList);
+                        foreach (var paragraph in bulletParagraphs)
+                        {
+                            body.Append(paragraph);
+                        }
+                    }
+                    break;
+
+                case "table":
+                    if (element.Table != null)
+                    {
+                        tableCounter++;
+                        if (!string.IsNullOrEmpty(element.Table.Title))
+                        {
+                            var caption = CreateTableCaption(element.Table.Title, sectionNumber, tableCounter);
+                            body.Append(caption);
+                        }
+
+                        var table = CreateLeftAlignedTableFromDto(element.Table);
+                        body.Append(table);
+                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
+                    }
+                    break;
+
+                case "image":
+                    if (element.Image != null)
+                    {
+                        var imageParagraph = new W.Paragraph(
+                            new W.ParagraphProperties(
+                                new W.Justification { Val = W.JustificationValues.Left },
+                                new W.SpacingBetweenLines { After = "200" }
+                            )
+                        );
+                        InsertImageToParagraph(imageParagraph, element.Image, mainPart);
+                        body.Append(imageParagraph);
+
+                        imageCounter++;
+                        if (!string.IsNullOrEmpty(element.Image.Caption))
+                        {
+                            var caption = CreateImageCaption(element.Image.Caption, sectionNumber, imageCounter);
+                            if (caption != null)
+                                body.Append(caption);
+                        }
+                    }
+                    break;
+            }
+        }
+
+        private W.Paragraph CreateLeftAlignedParagraph(string text)
+        {
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.Indentation() { FirstLine = "397" },
+                    new W.SpacingBetweenLines() { Line = "360", LineRule = W.LineSpacingRuleValues.Auto }
+                )
+            );
+
+            var run = new W.Run(
+                new W.RunProperties(
+                    new W.RunFonts() { Ascii = EnglishFont, HighAnsi = EnglishFont, ComplexScript = EnglishFont },
+                    new W.FontSize() { Val = EnglishFontSize }
+                ),
+                new W.Text(text)
+            );
+            paragraph.Append(run);
+
+            return paragraph;
+        }
+
+        private W.Paragraph[] CreateLeftAlignedBulletList(BulletListDto bulletList)
+        {
+            if (bulletList == null || bulletList.Items == null || !bulletList.Items.Any())
+                return new W.Paragraph[0];
+
+            var paragraphs = new List<W.Paragraph>();
+
+            if (!string.IsNullOrEmpty(bulletList.Title))
+            {
+                var titleParagraph = new W.Paragraph(
+                    new W.ParagraphProperties(
+                        new W.Justification() { Val = W.JustificationValues.Left },
+                        new W.SpacingBetweenLines { After = "120" }
+                    ),
+                    new W.Run(
+                        new W.RunProperties(
+                            new W.RunFonts { Ascii = EnglishFont, HighAnsi = EnglishFont, ComplexScript = EnglishFont },
+                            new W.FontSize { Val = "28" },
+                            new W.Bold()
+                        ),
+                        new W.Text(bulletList.Title)
+                    )
+                );
+                paragraphs.Add(titleParagraph);
+            }
+
+            foreach (var item in bulletList.Items.OrderBy(x => x.Order))
+            {
+                var paragraph = CreateLeftAlignedBulletListParagraph(item.Text, item.Level);
+                paragraphs.Add(paragraph);
+            }
+
+            var spacingParagraph = new W.Paragraph(
+                new W.ParagraphProperties(new W.SpacingBetweenLines { After = "200" })
+            );
+            paragraphs.Add(spacingParagraph);
+
+            return paragraphs.ToArray();
+        }
+
+        private W.Paragraph CreateLeftAlignedBulletListParagraph(string text, int level = 0)
+        {
+            int safeLevel = Math.Clamp(level, 0, 2);
+
+            var numberingProps = new W.NumberingProperties();
+            numberingProps.Append(new W.NumberingLevelReference() { Val = safeLevel });
+            numberingProps.Append(new W.NumberingId() { Val = 1 });
+
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    numberingProps,
+                    new W.Indentation() { FirstLine = "397", Left = (safeLevel * 720).ToString() },
+                    new W.SpacingBetweenLines() { Line = "360", LineRule = W.LineSpacingRuleValues.Auto, After = "0" }
+                )
+            );
+
+            var run = new W.Run(
+                new W.RunProperties(
+                    new W.RunFonts() { Ascii = EnglishFont, HighAnsi = EnglishFont, ComplexScript = EnglishFont },
+                    new W.FontSize() { Val = EnglishFontSize }
+                ),
+                new W.Text(text)
+            );
+            paragraph.Append(run);
+
+            return paragraph;
+        }
+
+        private W.Table CreateLeftAlignedTableFromDto(TableDataDto tableData)
+        {
+            var table = CreateTableFromDto(tableData);
+
+            var tableProps = table.GetFirstChild<W.TableProperties>();
+            if (tableProps != null)
+            {
+                var justification = tableProps.GetFirstChild<W.Justification>();
+                if (justification != null)
+                    justification.Val = W.JustificationValues.Left;
+                else
+                    tableProps.Append(new W.Justification { Val = W.JustificationValues.Left });
+            }
+
+            foreach (var row in table.Descendants<W.TableRow>())
+            {
+                foreach (var cell in row.Descendants<W.TableCell>())
+                {
+                    var para = cell.GetFirstChild<W.Paragraph>();
+                    if (para != null)
+                    {
+                        var paraProps = para.GetFirstChild<W.ParagraphProperties>();
+                        if (paraProps != null)
+                        {
+                            var justification = paraProps.GetFirstChild<W.Justification>();
+                            if (justification != null)
+                                justification.Val = W.JustificationValues.Left;
+                            else
+                                paraProps.Append(new W.Justification { Val = W.JustificationValues.Left });
+
+                            var bidi = paraProps.GetFirstChild<W.BiDi>();
+                            if (bidi != null)
+                                bidi.Remove();
+                        }
+                    }
+                }
+            }
+
+            return table;
+        }
+
+        private void RenderDocumentsSection(W.Body body, DocumentSectionDto documents, MainDocumentPart mainPart, ref int tableCounter, ref int imageCounter)
+        {
+            if (documents == null || !documents.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(documents.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            string sectionNumber = "پ";
+            foreach (var element in documents.Elements.OrderBy(x => x.Order))
+            {
+                RenderElement(body, element, mainPart, ref tableCounter, ref imageCounter, sectionNumber);
+            }
+        }
+
+        private void RenderDocumentsSectionFromEntity(W.Body body, DocumentSection documents, MainDocumentPart mainPart, ref int tableCounter, ref int imageCounter)
+        {
+            if (documents == null || !documents.IsActive)
+                return;
+
+            body.Append(new W.Paragraph(new W.Run(new W.Break() { Type = BreakValues.Page })));
+
+            var titleParagraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    new W.SpacingBetweenLines { After = "240", Before = "120" }
+                ),
+                new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                        new W.FontSize { Val = MasterHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(documents.Title))
+                )
+            );
+            body.Append(titleParagraph);
+
+            string sectionNumber = "پ";
+            foreach (var element in documents.Elements.OrderBy(x => x.Order))
+            {
+                RenderElementFromEntity(body, element, mainPart, ref tableCounter, ref imageCounter, sectionNumber);
+            }
+        }
+
+        private ContentElementDto MapContentElementToDto(ContentElement element)
+        {
+            return new ContentElementDto
+            {
+                Id = element.Id,
+                Type = element.Type.ToString().ToLower(),
+                Order = element.Order,
+                Text = element.ParagraphText,
+                Image = element.Image != null ? MapImageToDto(element.Image) : null,
+                Table = element.Table != null ? MapTableToDto(element.Table) : null,
+                BulletList = element.BulletList != null ? MapBulletListToDto(element.BulletList) : null
+            };
+        }
+
+        #endregion
+
+        #region Bullet List Methods
+
+        private BulletListDto MapBulletListToDto(BulletList bulletList)
+        {
+            if (bulletList == null) return null;
+
+            return new BulletListDto
+            {
+                Id = bulletList.Id,
+                Title = bulletList.Title,
+                Order = bulletList.Order,
+                Items = bulletList.Items?.OrderBy(x => x.Order).Select(x => new BulletListItemDto
+                {
+                    Id = x.Id,
+                    Text = x.Text,
+                    Order = x.Order,
+                    Level = x.Level
+                }).ToList() ?? new List<BulletListItemDto>()
+            };
+        }
+
+        private W.Paragraph[] CreateBulletList(BulletListDto bulletList)
+        {
+            if (bulletList == null || bulletList.Items == null || !bulletList.Items.Any())
+                return new W.Paragraph[0];
+
+            var paragraphs = new List<W.Paragraph>();
+
+            if (!string.IsNullOrEmpty(bulletList.Title))
+            {
+                var titleParagraph = new W.Paragraph(
+                    new W.ParagraphProperties(
+                        new W.BiDi(),
+                        new W.Justification() { Val = W.JustificationValues.Left },
+                        new W.SpacingBetweenLines { After = "120" }
+                    ),
+                    new W.Run(
+                        new W.RunProperties(
+                            new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                            new W.FontSize { Val = "28" },
+                            new W.Bold()
+                        ),
+                        new W.Text(PrepareRTLText(bulletList.Title))
+                    )
+                );
+                paragraphs.Add(titleParagraph);
+            }
+
+            foreach (var item in bulletList.Items.OrderBy(x => x.Order))
+            {
+                var paragraph = CreateBulletListParagraph(item.Text, item.Level);
+                paragraphs.Add(paragraph);
+            }
+
+            var spacingParagraph = new W.Paragraph(
+                new W.ParagraphProperties(new W.SpacingBetweenLines { After = "200" })
+            );
+            paragraphs.Add(spacingParagraph);
+
+            return paragraphs.ToArray();
+        }
+
+        private W.Paragraph CreateBulletListParagraph(string text, int level = 0)
+        {
+            int safeLevel = Math.Clamp(level, 0, 2);
+
+            var numberingProps = new W.NumberingProperties();
+            numberingProps.Append(new W.NumberingLevelReference() { Val = safeLevel });
+            numberingProps.Append(new W.NumberingId() { Val = 1 });
+
+            var paragraph = new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.BiDi(),
+                    new W.Justification() { Val = W.JustificationValues.Left },
+                    numberingProps,
+                    new W.Indentation() { FirstLine = "397", Left = (safeLevel * 720).ToString() },
+                    new W.SpacingBetweenLines() { Line = "360", LineRule = W.LineSpacingRuleValues.Auto, After = "0" }
+                )
+            );
+
+            var textRuns = CreateRunsForBulletText(text);
+            foreach (var run in textRuns)
+            {
+                paragraph.Append(run);
+            }
+
+            return paragraph;
+        }
+
+        private List<W.Run> CreateRunsForBulletText(string text)
+        {
+            var runs = new List<W.Run>();
+            if (string.IsNullOrEmpty(text))
+            {
+                runs.Add(CreateBulletTextRun(" ", false));
+                return runs;
+            }
+
+            var current = new List<char>();
+            bool? currentIsPersian = null;
+            var preparedText = PrepareRTLText(text);
+
+            foreach (var c in preparedText)
+            {
+                bool isPersian = !IsEnglish(c);
+
+                if (currentIsPersian == null)
+                    currentIsPersian = isPersian;
+
+                if (currentIsPersian != isPersian)
+                {
+                    if (current.Count > 0)
+                        runs.Add(CreateBulletTextRun(new string(current.ToArray()), currentIsPersian.Value));
+                    current.Clear();
+                    currentIsPersian = isPersian;
+                }
+
+                current.Add(c);
+            }
+
+            if (current.Count > 0)
+                runs.Add(CreateBulletTextRun(new string(current.ToArray()), currentIsPersian ?? false));
+
+            if (runs.Count == 0)
+                runs.Add(CreateBulletTextRun(" ", false));
+
+            return runs;
+        }
+
+        private W.Run CreateBulletTextRun(string text, bool isPersian)
+        {
+            var runProperties = new W.RunProperties(
+                new W.RunFonts()
+                {
+                    Ascii = isPersian ? PersianFont : EnglishFont,
+                    HighAnsi = isPersian ? PersianFont : EnglishFont,
+                    ComplexScript = isPersian ? PersianFont : EnglishFont
+                },
+                new W.FontSize() { Val = isPersian ? PersianFontSize : EnglishFontSize }
+            );
+
+            var run = new W.Run(runProperties);
+
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                var textElement = new W.Text(text);
+                textElement.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
+                run.Append(textElement);
+            }
+            else
+            {
+                run.Append(new W.Text(" "));
+            }
+
+            return run;
+        }
+
+        #endregion
+
         #region Image Methods
+
+        #region Image Methods
+
+        private uint _imageId = 1; // برای تولید Id یکتا
+
+        /// <summary>
+        /// تشخیص نوع تصویر و برگرداندن PartTypeInfo مناسب
+        /// </summary>
+        private PartTypeInfo DetectImagePartType(byte[] imageBytes)
+        {
+            if (imageBytes == null || imageBytes.Length < 4)
+                return ImagePartType.Jpeg;
+
+            // PNG
+            if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 &&
+                imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+            {
+                return ImagePartType.Png;
+            }
+            // JPEG
+            else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
+            {
+                return ImagePartType.Jpeg;
+            }
+            // GIF
+            else if (imageBytes[0] == 0x47 && imageBytes[1] == 0x49 &&
+                     imageBytes[2] == 0x46 && imageBytes[3] == 0x38)
+            {
+                return ImagePartType.Gif;
+            }
+            // BMP
+            else if (imageBytes[0] == 0x42 && imageBytes[1] == 0x4D)
+            {
+                return ImagePartType.Bmp;
+            }
+            // WebP
+            else if (imageBytes[0] == 0x52 && imageBytes[1] == 0x49 &&
+                     imageBytes[2] == 0x46 && imageBytes[3] == 0x46)
+            {
+                // WebP رو به JPEG تبدیل میکنیم چون Word پشتیبانی کامل نداره
+                return ImagePartType.Jpeg;
+            }
+
+            return ImagePartType.Jpeg;
+        }
 
         private void InsertImageToParagraph(W.Paragraph paragraph, ImageItemDto imageDto, MainDocumentPart mainPart)
         {
@@ -686,99 +2054,207 @@ namespace WordGenerator.Api.Application.Services
 
             try
             {
-                var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+                // ===== 1. بررسی Base64 =====
+                Console.WriteLine($"=== Inserting Image: {imageDto.FileName} ===");
+                Console.WriteLine($"Base64 Length: {imageDto.ImageBase64?.Length ?? 0}");
 
-                var imagePartType = ImagePartType.Jpeg;
-                if (imageBytes.Length > 4)
+                // ===== 2. تبدیل Base64 به byte[] =====
+                var imageBytes = Convert.FromBase64String(imageDto.ImageBase64);
+                Console.WriteLine($"Image Bytes Length: {imageBytes.Length}");
+
+                if (imageBytes == null || imageBytes.Length == 0)
                 {
-                    if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
-                        imagePartType = ImagePartType.Png;
-                    else if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
-                        imagePartType = ImagePartType.Jpeg;
+                    Console.WriteLine("ERROR: Image bytes is null or empty");
+                    return;
                 }
 
+                // ===== 3. بررسی اینکه تصویر واقعاً قابل باز شدنه =====
+                //try
+                //{
+                //    using (var ms = new MemoryStream(imageBytes))
+                //    {
+                //        using (var img = System.Drawing.Image.FromStream(ms))
+                //        {
+                //            Console.WriteLine($"Image loaded successfully: {img.Width}x{img.Height}");
+                //        }
+                //    }
+                //}
+                //catch (Exception imgEx)
+                //{
+                //    Console.WriteLine($"ERROR: Image is corrupted - {imgEx.Message}");
+                //    // تصویر خرابه، یه placeholder نشون بده
+                //    var errorRun = new W.Run(
+                //        new W.RunProperties(
+                //            new W.FontSize { Val = "24" },
+                //            new W.Color { Val = "FF0000" }
+                //        ),
+                //        new W.Text($"[تصویر خراب: {imageDto.FileName}]")
+                //    );
+                //    paragraph.AppendChild(errorRun);
+                //    return;
+                //}
+
+                // ===== 4. تشخیص نوع تصویر =====
+                var imagePartType = DetectImagePartType(imageBytes);
+                Console.WriteLine($"Image Type: {imagePartType}");
+
+                // ===== 5. اضافه کردن ImagePart =====
                 var imagePart = mainPart.AddImagePart(imagePartType);
                 using (var stream = new MemoryStream(imageBytes))
                 {
                     imagePart.FeedData(stream);
                 }
-                var imagePartId = mainPart.GetIdOfPart(imagePart);
 
-                long cx = (long)(imageDto.Width * 9525);
-                long cy = (long)(imageDto.Height * 9525);
+                // ===== 6. گرفتن ImagePartId =====
+                var imagePartId = mainPart.GetIdOfPart(imagePart);
+                Console.WriteLine($"Image Part ID: {imagePartId}");
+
+                if (string.IsNullOrEmpty(imagePartId))
+                {
+                    Console.WriteLine("ERROR: ImagePartId is null or empty");
+                    return;
+                }
+
+                // ===== 7. محاسبه ابعاد با مقدار پیش‌فرض =====
+                long cx, cy;
+
+                if (imageDto.Width <= 0)
+                {
+                    imageDto.Width = 400;
+                    imageDto.Height = (int)(imageDto.Width * 0.75);
+                }
+
+                //if (imageDto.Height <= 0)
+                //{
+                //    try
+                //    {
+                //        using (var ms = new MemoryStream(imageBytes))
+                //        {
+                //            using (var img = System.Drawing.Image.FromStream(ms))
+                //            {
+                //                var ratio = (double)img.Width / img.Height;
+                //                imageDto.Height = (int)(imageDto.Width / ratio);
+                //            }
+                //        }
+                //    }
+                //    catch
+                //    {
+                //    }
+                //}
+
+                cx = (long)(imageDto.Width * 9525);
+                cy = (long)(imageDto.Height * 9525);
+
+                // محدودیت اندازه
+                long maxSize = 800 * 9525;
+                if (cx > maxSize)
+                {
+                    cy = (long)(cy * ((double)maxSize / cx));
+                    cx = maxSize;
+                }
+                if (cy > maxSize)
+                {
+                    cx = (long)(cx * ((double)maxSize / cy));
+                    cy = maxSize;
+                }
 
                 if (cx < 1) cx = 9525;
                 if (cy < 1) cy = 9525;
 
-                var run = new W.Run();
+                Console.WriteLine($"Final Size: {cx / 9525}x{cy / 9525} pixels");
 
-                var drawing = new W.Drawing(
-                    new DW.Inline(
-                        new DW.Extent() { Cx = cx, Cy = cy },
-                        new DW.DocProperties()
-                        {
-                            Id = (UInt32Value)(imageDto.Id ?? DateTime.Now.Ticks),
-                            Name = imageDto.FileName ?? "Image"
-                        },
-                        new DW.NonVisualGraphicFrameDrawingProperties(
-                            new D.GraphicFrameLocks() { NoChangeAspect = true }
-                        ),
-                        new D.Graphic(
-                            new D.GraphicData(
-                                new PIC.Picture(
-                                    new PIC.NonVisualPictureProperties(
-                                        new PIC.NonVisualDrawingProperties()
-                                        {
-                                            Id = (UInt32Value)0U,
-                                            Name = imageDto.FileName ?? "img.jpg"
-                                        },
-                                        new PIC.NonVisualPictureDrawingProperties()
-                                    ),
-                                    new PIC.BlipFill(
-                                        new D.Blip()
-                                        {
-                                            Embed = imagePartId
-                                        },
-                                        new D.Stretch(
-                                            new D.FillRectangle()
-                                        )
-                                    ),
-                                    new PIC.ShapeProperties(
-                                        new D.Transform2D(
-                                            new D.Offset() { X = 0L, Y = 0L },
-                                            new D.Extents()
-                                            {
-                                                Cx = cx,
-                                                Cy = cy
-                                            }
-                                        ),
-                                        new D.PresetGeometry(
-                                            new D.AdjustValueList()
-                                        )
-                                        { Preset = D.ShapeTypeValues.Rectangle }
-                                    )
-                                )
-                            )
-                            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }
-                        )
-                    )
-                );
+                // ===== 8. ایجاد Run و Drawing با Id یکتا =====
+                var imageRun = new W.Run();
 
-                run.AppendChild(drawing);
-                paragraph.AppendChild(run);
+                uint uniqueId = _imageId++;
+                Console.WriteLine($"Unique Image ID: {uniqueId}");
+
+                var drawing = new W.Drawing();
+
+                var inline = new DW.Inline();
+
+                inline.AppendChild(new DW.Extent() { Cx = cx, Cy = cy });
+                inline.AppendChild(new DW.EffectExtent()
+                {
+                    LeftEdge = 0L,
+                    TopEdge = 0L,
+                    RightEdge = 0L,
+                    BottomEdge = 0L
+                });
+
+                inline.AppendChild(new DW.DocProperties()
+                {
+                    Id = (UInt32Value)uniqueId,
+                    Name = imageDto.FileName ?? $"Image_{uniqueId}",
+                    Description = imageDto.Caption ?? ""
+                });
+
+                var nvGraphicFramePr = new DW.NonVisualGraphicFrameDrawingProperties();
+                nvGraphicFramePr.AppendChild(new D.GraphicFrameLocks() { NoChangeAspect = true });
+                inline.AppendChild(nvGraphicFramePr);
+
+                var graphic = new D.Graphic();
+                var graphicData = new D.GraphicData()
+                {
+                    Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture"
+                };
+
+                var picture = new PIC.Picture();
+
+                var nvPicPr = new PIC.NonVisualPictureProperties();
+                nvPicPr.AppendChild(new PIC.NonVisualDrawingProperties()
+                {
+                    Id = (UInt32Value)0U,
+                    Name = imageDto.FileName ?? $"Image_{uniqueId}",
+                    Description = imageDto.Caption ?? ""
+                });
+                nvPicPr.AppendChild(new PIC.NonVisualPictureDrawingProperties());
+                picture.AppendChild(nvPicPr);
+
+                var blipFill = new PIC.BlipFill();
+                var blip = new D.Blip() { Embed = imagePartId };
+                blipFill.AppendChild(blip);
+                blipFill.AppendChild(new D.Stretch(new D.FillRectangle()));
+                picture.AppendChild(blipFill);
+
+                var spPr = new PIC.ShapeProperties();
+                var xfrm = new D.Transform2D();
+                xfrm.AppendChild(new D.Offset() { X = 0L, Y = 0L });
+                xfrm.AppendChild(new D.Extents() { Cx = cx, Cy = cy });
+                spPr.AppendChild(xfrm);
+                spPr.AppendChild(new D.PresetGeometry(new D.AdjustValueList())
+                {
+                    Preset = D.ShapeTypeValues.Rectangle
+                });
+                picture.AppendChild(spPr);
+
+                graphicData.AppendChild(picture);
+                graphic.AppendChild(graphicData);
+                inline.AppendChild(graphic);
+
+                drawing.AppendChild(inline);
+                imageRun.AppendChild(drawing);
+                paragraph.AppendChild(imageRun);
+
+                Console.WriteLine($"✅ Image inserted successfully: {imageDto.FileName}");
             }
             catch (Exception ex)
             {
-                var run = new W.Run(
+                Console.WriteLine($"ERROR in InsertImageToParagraph: {ex.Message}");
+                Console.WriteLine($"StackTrace: {ex.StackTrace}");
+
+                var errorRun = new W.Run(
                     new W.RunProperties(
                         new W.FontSize { Val = "24" },
                         new W.Color { Val = "FF0000" }
                     ),
-                    new W.Text($"[خطا در بارگذاری تصویر: {imageDto.FileName}]")
+                    new W.Text($"[خطا: {imageDto.FileName}]")
                 );
-                paragraph.AppendChild(run);
+                paragraph.AppendChild(errorRun);
             }
         }
+
+        #endregion
 
         private ImageItemDto MapImageToDto(ImageItem image)
         {
@@ -832,22 +2308,26 @@ namespace WordGenerator.Api.Application.Services
 
         private W.Paragraph CreateMasterHeading(string text, string sectionNumber)
         {
+            // ===== محاسبه فاصله برای وسط‌چین عمودی =====
+            // حدود 40% از ارتفاع صفحه (با فرض A4)
+            // مقدار 1440 = 1 اینچ، 4320 = 3 اینچ
+            int spacingBefore = 4320; // حدود 3 اینچ فاصله از بالا
+
             var paragraph = new W.Paragraph(
                 new W.ParagraphProperties(
                     new W.ParagraphStyleId() { Val = "Heading1" },
                     new W.Justification() { Val = W.JustificationValues.Center },
                     new W.BiDi(),
-                    new W.SpacingBetweenLines { After = "240", Before = "240" },
-                    new W.PageBreakBefore()
+                    new W.SpacingBetweenLines
+                    {
+                        After = "0",
+                        Before = spacingBefore.ToString()  // فاصله قبل از عنوان
+                    },
+                    new W.PageBreakBefore()  // صفحه جدید
                 ),
                 new W.Run(
                     new W.RunProperties(
-                        new W.RunFonts()
-                        {
-                            Ascii = PersianFont,
-                            HighAnsi = PersianFont,
-                            ComplexScript = PersianFont
-                        },
+                        new W.RunFonts() { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                         new W.FontSize() { Val = MasterHeaderFontSize },
                         new W.Bold()
                     ),
@@ -869,12 +2349,7 @@ namespace WordGenerator.Api.Application.Services
                 ),
                 new W.Run(
                     new W.RunProperties(
-                        new W.RunFonts()
-                        {
-                            Ascii = PersianFont,
-                            HighAnsi = PersianFont,
-                            ComplexScript = PersianFont
-                        },
+                        new W.RunFonts() { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                         new W.FontSize() { Val = SubHeaderFontSize },
                         new W.Bold()
                     ),
@@ -896,12 +2371,7 @@ namespace WordGenerator.Api.Application.Services
                 ),
                 new W.Run(
                     new W.RunProperties(
-                        new W.RunFonts()
-                        {
-                            Ascii = PersianFont,
-                            HighAnsi = PersianFont,
-                            ComplexScript = PersianFont
-                        },
+                        new W.RunFonts() { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                         new W.FontSize() { Val = fontSize },
                         new W.Bold()
                     ),
@@ -1000,23 +2470,32 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
+            // عنوان - بولد و بزرگ
             if (!string.IsNullOrWhiteSpace(cover.Title))
             {
                 paragraph.Append(
                     CreateRunForCover(PrepareRTLText(cover.Title), true, true, CoverTitleFontSize),
                     new W.Run(new W.Break())
                 );
+
+                paragraph.Append(new W.Run(new W.Break()));
             }
 
+            // آیتم‌ها
             foreach (var item in cover.Items.OrderBy(x => x.Order))
             {
+                // برچسب - بدون بولد، با فونت معمولی
                 paragraph.Append(
-                    CreateRunForCover(PrepareRTLText(item.Label + ":"), true, false, "32"),
+                    CreateRunForCover(PrepareRTLText(item.Label + ":"), true, false, "32"),  // ✅ false = بدون بولد
                     new W.Run(new W.Break())
                 );
 
-                var runs = CreateRunsForText(PrepareRTLText(item.Value));
+                // مقدار - بدون بولد
+                var runs = CreateRunsForTextWithoutBold(PrepareRTLText(item.Value));
                 paragraph.Append(runs);
+                paragraph.Append(new W.Run(new W.Break()));
+
+                // ===== فاصله بین آیتم‌ها (یک خط خالی) =====
                 paragraph.Append(new W.Run(new W.Break()));
             }
 
@@ -1043,19 +2522,62 @@ namespace WordGenerator.Api.Application.Services
 
             foreach (var item in cover.Items.OrderBy(x => x.Order))
             {
+                // برچسب - بدون بولد
                 paragraph.Append(
-                    CreateRunForCover(PrepareRTLText(item.Label + ":"), true, false, "32"),
+                    CreateRunForCover(PrepareRTLText(item.Label + ":"), true, false, "32"),  // ✅ false = بدون بولد
                     new W.Run(new W.Break())
                 );
 
-                var runs = CreateRunsForText(PrepareRTLText(item.Value));
+                // مقدار - بدون بولد
+                var runs = CreateRunsForTextWithoutBold(PrepareRTLText(item.Value));
                 paragraph.Append(runs);
+                paragraph.Append(new W.Run(new W.Break()));
+
+                // ===== فاصله بین آیتم‌ها =====
                 paragraph.Append(new W.Run(new W.Break()));
             }
 
             return paragraph;
         }
 
+        /// <summary>
+        /// ایجاد Runهای برای متن بدون بولد (برای مقادیر کاورپیج)
+        /// </summary>
+        private List<W.Run> CreateRunsForTextWithoutBold(string text)
+        {
+            var runs = new List<W.Run>();
+            if (string.IsNullOrEmpty(text))
+            {
+                runs.Add(CreateRunForCover(" ", false, false, "32"));
+                return runs;
+            }
+
+            var current = new List<char>();
+            bool? currentIsPersian = null;
+
+            foreach (var c in text)
+            {
+                bool isPersian = !IsEnglish(c);
+
+                if (currentIsPersian == null)
+                    currentIsPersian = isPersian;
+
+                if (currentIsPersian != isPersian)
+                {
+                    if (current.Count > 0)
+                        runs.Add(CreateRunForCover(new string(current.ToArray()), currentIsPersian.Value, false, "32"));
+                    current.Clear();
+                    currentIsPersian = isPersian;
+                }
+
+                current.Add(c);
+            }
+
+            if (current.Count > 0)
+                runs.Add(CreateRunForCover(new string(current.ToArray()), currentIsPersian ?? false, false, "32"));
+
+            return runs;
+        }
         #endregion
 
         #region Paragraph Creation
@@ -1067,11 +2589,7 @@ namespace WordGenerator.Api.Application.Services
                     new W.BiDi(),
                     new W.Justification() { Val = W.JustificationValues.Left },
                     new W.Indentation() { FirstLine = "397" },
-                    new W.SpacingBetweenLines()
-                    {
-                        Line = "360",
-                        LineRule = W.LineSpacingRuleValues.Auto
-                    }
+                    new W.SpacingBetweenLines() { Line = "360", LineRule = W.LineSpacingRuleValues.Auto }
                 )
             );
 
@@ -1085,9 +2603,7 @@ namespace WordGenerator.Api.Application.Services
                 bool isPersian = !IsEnglish(c);
 
                 if (currentIsPersian == null)
-                {
                     currentIsPersian = isPersian;
-                }
 
                 if (currentIsPersian != isPersian)
                 {
@@ -1101,9 +2617,7 @@ namespace WordGenerator.Api.Application.Services
             }
 
             if (current.Count > 0)
-            {
                 runs.Add(CreateRunForParagraph(new string(current.ToArray()), currentIsPersian ?? false));
-            }
 
             paragraph.Append(runs);
             return paragraph;
@@ -1155,12 +2669,7 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
-            var shading = new W.Shading
-            {
-                Val = W.ShadingPatternValues.Clear,
-                Color = "auto",
-                Fill = "FFFFFF"
-            };
+            var shading = new W.Shading { Val = W.ShadingPatternValues.Clear, Color = "auto", Fill = "FFFFFF" };
             cellProps.Append(shading);
 
             cell.Append(cellProps);
@@ -1173,7 +2682,7 @@ namespace WordGenerator.Api.Application.Services
 
             var paragraph = new W.Paragraph(
                 new W.ParagraphProperties(
-                    new W.Justification { Val = W.JustificationValues.Right },
+                    new W.Justification { Val = W.JustificationValues.Left },
                     new W.BiDi(),
                     new W.SpacingBetweenLines { After = "0" }
                 )
@@ -1195,12 +2704,7 @@ namespace WordGenerator.Api.Application.Services
 
             if (!string.IsNullOrEmpty(backgroundColor))
             {
-                var shading = new W.Shading
-                {
-                    Val = W.ShadingPatternValues.Clear,
-                    Color = "auto",
-                    Fill = backgroundColor
-                };
+                var shading = new W.Shading { Val = W.ShadingPatternValues.Clear, Color = "auto", Fill = backgroundColor };
                 cellProps.Append(shading);
             }
 
@@ -1217,7 +2721,6 @@ namespace WordGenerator.Api.Application.Services
             var runs = new List<W.Run>();
             var current = new List<char>();
             bool? currentIsPersian = null;
-
             var preparedText = PrepareRTLText(text);
 
             foreach (var c in preparedText)
@@ -1225,9 +2728,7 @@ namespace WordGenerator.Api.Application.Services
                 bool isPersian = !IsEnglish(c);
 
                 if (currentIsPersian == null)
-                {
                     currentIsPersian = isPersian;
-                }
 
                 if (currentIsPersian != isPersian)
                 {
@@ -1241,14 +2742,10 @@ namespace WordGenerator.Api.Application.Services
             }
 
             if (current.Count > 0)
-            {
                 runs.Add(CreateTableCellRun(new string(current.ToArray()), currentIsPersian ?? false, false));
-            }
 
             if (runs.Count == 0)
-            {
                 runs.Add(CreateTableCellRun("", false, false));
-            }
 
             return runs;
         }
@@ -1266,9 +2763,7 @@ namespace WordGenerator.Api.Application.Services
             );
 
             if (isHeader)
-            {
                 runProperties.Append(new W.Bold());
-            }
 
             var run = new W.Run(runProperties);
 
@@ -1297,14 +2792,12 @@ namespace WordGenerator.Api.Application.Services
                 bool isPersian = !IsEnglish(c);
 
                 if (currentIsPersian == null)
-                {
                     currentIsPersian = isPersian;
-                }
 
                 if (currentIsPersian != isPersian)
                 {
                     if (current.Count > 0)
-                        runs.Add(CreateRunForCover(new string(current.ToArray()), currentIsPersian.Value, false, "28"));
+                        runs.Add(CreateRunForCover(new string(current.ToArray()), currentIsPersian.Value, false, "32"));
                     current.Clear();
                     currentIsPersian = isPersian;
                 }
@@ -1313,34 +2806,36 @@ namespace WordGenerator.Api.Application.Services
             }
 
             if (current.Count > 0)
-            {
-                runs.Add(CreateRunForCover(new string(current.ToArray()), currentIsPersian ?? false, false, "28"));
-            }
+                runs.Add(CreateRunForCover(new string(current.ToArray()), currentIsPersian ?? false, false, "32"));
 
             return runs;
         }
 
+        /// <summary>
+        /// ایجاد Run برای کاورپیج با کنترل Bold
+        /// </summary>
         private W.Run CreateRunForCover(string text, bool isPersian, bool isTitle, string fontSize)
         {
-            var run = new W.Run(
-                new W.RunProperties(
-                    new W.RunFonts
-                    {
-                        Ascii = isPersian ? PersianFont : EnglishFont,
-                        HighAnsi = isPersian ? PersianFont : EnglishFont,
-                        ComplexScript = isPersian ? PersianFont : EnglishFont
-                    },
-                    new W.FontSize { Val = fontSize },
-                    new W.Bold()
-                )
+            var runProperties = new W.RunProperties(
+                new W.RunFonts
+                {
+                    Ascii = isPersian ? PersianFont : EnglishFont,
+                    HighAnsi = isPersian ? PersianFont : EnglishFont,
+                    ComplexScript = isPersian ? PersianFont : EnglishFont
+                },
+                new W.FontSize { Val = fontSize }
             );
 
+            runProperties.Append(new W.Bold());
+
+            var run = new W.Run(runProperties);
             var textElement = new W.Text(text);
             textElement.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
             run.Append(textElement);
 
             return run;
         }
+
 
         #endregion
 
@@ -1390,18 +2885,11 @@ namespace WordGenerator.Api.Application.Services
                 StyleId = "Normal",
                 Default = true
             };
-            var normalName = new W.StyleName { Val = "Normal" };
-            normalStyle.Append(normalName);
-            var normalRunProps = new W.StyleRunProperties(
-                new W.RunFonts
-                {
-                    Ascii = PersianFont,
-                    HighAnsi = PersianFont,
-                    ComplexScript = PersianFont
-                },
+            normalStyle.Append(new W.StyleName { Val = "Normal" });
+            normalStyle.Append(new W.StyleRunProperties(
+                new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                 new W.FontSize { Val = "24" }
-            );
-            normalStyle.Append(normalRunProps);
+            ));
             styles.Append(normalStyle);
 
             var heading1Style = new W.Style
@@ -1411,29 +2899,18 @@ namespace WordGenerator.Api.Application.Services
                 Default = false,
                 CustomStyle = false
             };
-
-            var heading1Name = new W.StyleName { Val = "heading 1" };
-            heading1Style.Append(heading1Name);
-
-            var heading1ParaProps = new W.StyleParagraphProperties(
+            heading1Style.Append(new W.StyleName { Val = "heading 1" });
+            heading1Style.Append(new W.StyleParagraphProperties(
                 new W.ParagraphStyleId { Val = "Heading1" },
                 new W.Justification { Val = W.JustificationValues.Center },
                 new W.SpacingBetweenLines { After = "240", Line = "240" },
                 new W.OutlineLevel { Val = 0 }
-            );
-
-            var heading1RunProps = new W.StyleRunProperties(
-                new W.RunFonts
-                {
-                    Ascii = PersianFont,
-                    HighAnsi = PersianFont,
-                    ComplexScript = PersianFont
-                },
+            ));
+            heading1Style.Append(new W.StyleRunProperties(
+                new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                 new W.FontSize { Val = MasterHeaderFontSize },
                 new W.Bold()
-            );
-
-            heading1Style.Append(heading1ParaProps, heading1RunProps);
+            ));
             styles.Append(heading1Style);
 
             var heading2Style = new W.Style
@@ -1443,29 +2920,18 @@ namespace WordGenerator.Api.Application.Services
                 Default = false,
                 CustomStyle = false
             };
-
-            var heading2Name = new W.StyleName { Val = "heading 2" };
-            heading2Style.Append(heading2Name);
-
-            var heading2ParaProps = new W.StyleParagraphProperties(
+            heading2Style.Append(new W.StyleName { Val = "heading 2" });
+            heading2Style.Append(new W.StyleParagraphProperties(
                 new W.ParagraphStyleId { Val = "Heading2" },
-                new W.Justification { Val = W.JustificationValues.Right },
+                new W.Justification { Val = W.JustificationValues.Left },
                 new W.SpacingBetweenLines { After = "120", Line = "240" },
                 new W.OutlineLevel { Val = 1 }
-            );
-
-            var heading2RunProps = new W.StyleRunProperties(
-                new W.RunFonts
-                {
-                    Ascii = PersianFont,
-                    HighAnsi = PersianFont,
-                    ComplexScript = PersianFont
-                },
+            ));
+            heading2Style.Append(new W.StyleRunProperties(
+                new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                 new W.FontSize { Val = SubHeaderFontSize },
                 new W.Bold()
-            );
-
-            heading2Style.Append(heading2ParaProps, heading2RunProps);
+            ));
             styles.Append(heading2Style);
 
             stylesPart.Styles = styles;
@@ -1490,7 +2956,7 @@ namespace WordGenerator.Api.Application.Services
                 return true;
 
             if (c >= '0' && c <= '9')
-                return true;
+                return false;
 
             return c == '[' || c == ']' || c == '{' || c == '}' ||
                    c == '.' || c == ',' || c == ';' || c == ':' || c == '!' || c == '?' ||

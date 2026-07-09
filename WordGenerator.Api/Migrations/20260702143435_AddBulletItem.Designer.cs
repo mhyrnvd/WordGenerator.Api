@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WordGenerator.Api.Infra.Context;
 
@@ -10,9 +11,11 @@ using WordGenerator.Api.Infra.Context;
 namespace WordGenerator.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260702143435_AddBulletItem")]
+    partial class AddBulletItem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -20,42 +23,6 @@ namespace WordGenerator.Api.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.AttachmentSection", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("DocumentTemplateId")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<int>("Order")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasDefaultValue("الف) پیوست‌ها");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DocumentTemplateId")
-                        .IsUnique();
-
-                    b.ToTable("AttachmentSections", (string)null);
-                });
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.BulletList", b =>
                 {
@@ -134,37 +101,6 @@ namespace WordGenerator.Api.Migrations
                     b.ToTable("BulletListItems", (string)null);
                 });
 
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ConceptsSection", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("DocumentTemplateId")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasDefaultValue("مفاهیم");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DocumentTemplateId")
-                        .IsUnique();
-
-                    b.ToTable("ConceptsSections", (string)null);
-                });
-
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ContentElement", b =>
                 {
                     b.Property<long>("Id")
@@ -173,19 +109,10 @@ namespace WordGenerator.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<long?>("AttachmentSectionId")
-                        .HasColumnType("bigint");
-
                     b.Property<long?>("BulletListId")
                         .HasColumnType("bigint");
 
-                    b.Property<long?>("ConceptsSectionId")
-                        .HasColumnType("bigint");
-
                     b.Property<long?>("CoverPageId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("DocumentSectionId")
                         .HasColumnType("bigint");
 
                     b.Property<long?>("ImageId")
@@ -203,12 +130,6 @@ namespace WordGenerator.Api.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
-                    b.Property<long?>("PrefaceSectionId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("ReferenceSectionId")
-                        .HasColumnType("bigint");
-
                     b.Property<long?>("SubSectionId")
                         .HasColumnType("bigint");
 
@@ -223,25 +144,15 @@ namespace WordGenerator.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AttachmentSectionId");
-
                     b.HasIndex("BulletListId");
 
-                    b.HasIndex("ConceptsSectionId");
-
                     b.HasIndex("CoverPageId");
-
-                    b.HasIndex("DocumentSectionId");
 
                     b.HasIndex("ImageId");
 
                     b.HasIndex("MasterSectionId");
 
                     b.HasIndex("Order");
-
-                    b.HasIndex("PrefaceSectionId");
-
-                    b.HasIndex("ReferenceSectionId");
 
                     b.HasIndex("SubSectionId");
 
@@ -310,42 +221,6 @@ namespace WordGenerator.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("CoverPageTemplates", (string)null);
-                });
-
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.DocumentSection", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("DocumentTemplateId")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<int>("Order")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(3);
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasDefaultValue("پ) مدارک");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DocumentTemplateId")
-                        .IsUnique();
-
-                    b.ToTable("DocumentSections", (string)null);
                 });
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.DocumentTemplate", b =>
@@ -633,73 +508,6 @@ namespace WordGenerator.Api.Migrations
                     b.ToTable("PageHeaders", (string)null);
                 });
 
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.PrefaceSection", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("DocumentTemplateId")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasDefaultValue("پیش‌گفتار");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DocumentTemplateId")
-                        .IsUnique();
-
-                    b.ToTable("PrefaceSections", (string)null);
-                });
-
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ReferenceSection", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("DocumentTemplateId")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<int>("Order")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(2);
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasDefaultValue("ب) References");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DocumentTemplateId")
-                        .IsUnique();
-
-                    b.ToTable("ReferenceSections", (string)null);
-                });
-
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.SubSection", b =>
                 {
                     b.Property<long>("Id")
@@ -848,17 +656,6 @@ namespace WordGenerator.Api.Migrations
                     b.ToTable("TemplateSections", (string)null);
                 });
 
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.AttachmentSection", b =>
-                {
-                    b.HasOne("WordGenerator.Api.Domain.Entities.DocumentTemplate", "DocumentTemplate")
-                        .WithOne("AttachmentSection")
-                        .HasForeignKey("WordGenerator.Api.Domain.Entities.AttachmentSection", "DocumentTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DocumentTemplate");
-                });
-
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.BulletList", b =>
                 {
                     b.HasOne("WordGenerator.Api.Domain.Entities.CoverPageTemplate", "CoverPage")
@@ -901,42 +698,16 @@ namespace WordGenerator.Api.Migrations
                     b.Navigation("BulletList");
                 });
 
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ConceptsSection", b =>
-                {
-                    b.HasOne("WordGenerator.Api.Domain.Entities.DocumentTemplate", "DocumentTemplate")
-                        .WithOne("ConceptsSection")
-                        .HasForeignKey("WordGenerator.Api.Domain.Entities.ConceptsSection", "DocumentTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DocumentTemplate");
-                });
-
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ContentElement", b =>
                 {
-                    b.HasOne("WordGenerator.Api.Domain.Entities.AttachmentSection", "AttachmentSection")
-                        .WithMany("Elements")
-                        .HasForeignKey("AttachmentSectionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("WordGenerator.Api.Domain.Entities.BulletList", "BulletList")
                         .WithMany()
                         .HasForeignKey("BulletListId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("WordGenerator.Api.Domain.Entities.ConceptsSection", "ConceptsSection")
-                        .WithMany("Elements")
-                        .HasForeignKey("ConceptsSectionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("WordGenerator.Api.Domain.Entities.CoverPageTemplate", "CoverPage")
                         .WithMany("Elements")
                         .HasForeignKey("CoverPageId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("WordGenerator.Api.Domain.Entities.DocumentSection", "DocumentSection")
-                        .WithMany("Elements")
-                        .HasForeignKey("DocumentSectionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("WordGenerator.Api.Domain.Entities.ImageItem", "Image")
@@ -947,16 +718,6 @@ namespace WordGenerator.Api.Migrations
                     b.HasOne("WordGenerator.Api.Domain.Entities.MasterSection", "MasterSection")
                         .WithMany("Elements")
                         .HasForeignKey("MasterSectionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("WordGenerator.Api.Domain.Entities.PrefaceSection", "PrefaceSection")
-                        .WithMany("Elements")
-                        .HasForeignKey("PrefaceSectionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("WordGenerator.Api.Domain.Entities.ReferenceSection", "ReferenceSection")
-                        .WithMany("Elements")
-                        .HasForeignKey("ReferenceSectionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("WordGenerator.Api.Domain.Entities.SubSection", "SubSection")
@@ -974,23 +735,13 @@ namespace WordGenerator.Api.Migrations
                         .HasForeignKey("TemplateSectionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Navigation("AttachmentSection");
-
                     b.Navigation("BulletList");
 
-                    b.Navigation("ConceptsSection");
-
                     b.Navigation("CoverPage");
-
-                    b.Navigation("DocumentSection");
 
                     b.Navigation("Image");
 
                     b.Navigation("MasterSection");
-
-                    b.Navigation("PrefaceSection");
-
-                    b.Navigation("ReferenceSection");
 
                     b.Navigation("SubSection");
 
@@ -1015,17 +766,6 @@ namespace WordGenerator.Api.Migrations
                     b.HasOne("WordGenerator.Api.Domain.Entities.DocumentTemplate", "DocumentTemplate")
                         .WithOne("CoverPage")
                         .HasForeignKey("WordGenerator.Api.Domain.Entities.CoverPageTemplate", "DocumentTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DocumentTemplate");
-                });
-
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.DocumentSection", b =>
-                {
-                    b.HasOne("WordGenerator.Api.Domain.Entities.DocumentTemplate", "DocumentTemplate")
-                        .WithOne("DocumentSection")
-                        .HasForeignKey("WordGenerator.Api.Domain.Entities.DocumentSection", "DocumentTemplateId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1156,28 +896,6 @@ namespace WordGenerator.Api.Migrations
                     b.Navigation("DocumentTemplate");
                 });
 
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.PrefaceSection", b =>
-                {
-                    b.HasOne("WordGenerator.Api.Domain.Entities.DocumentTemplate", "DocumentTemplate")
-                        .WithOne("PrefaceSection")
-                        .HasForeignKey("WordGenerator.Api.Domain.Entities.PrefaceSection", "DocumentTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DocumentTemplate");
-                });
-
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ReferenceSection", b =>
-                {
-                    b.HasOne("WordGenerator.Api.Domain.Entities.DocumentTemplate", "DocumentTemplate")
-                        .WithOne("ReferenceSection")
-                        .HasForeignKey("WordGenerator.Api.Domain.Entities.ReferenceSection", "DocumentTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DocumentTemplate");
-                });
-
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.SubSection", b =>
                 {
                     b.HasOne("WordGenerator.Api.Domain.Entities.MasterSection", "MasterSection")
@@ -1241,19 +959,9 @@ namespace WordGenerator.Api.Migrations
                     b.Navigation("Template");
                 });
 
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.AttachmentSection", b =>
-                {
-                    b.Navigation("Elements");
-                });
-
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.BulletList", b =>
                 {
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ConceptsSection", b =>
-                {
-                    b.Navigation("Elements");
                 });
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.CoverPageTemplate", b =>
@@ -1263,28 +971,13 @@ namespace WordGenerator.Api.Migrations
                     b.Navigation("Items");
                 });
 
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.DocumentSection", b =>
-                {
-                    b.Navigation("Elements");
-                });
-
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.DocumentTemplate", b =>
                 {
-                    b.Navigation("AttachmentSection");
-
-                    b.Navigation("ConceptsSection");
-
                     b.Navigation("CoverPage");
-
-                    b.Navigation("DocumentSection");
 
                     b.Navigation("MasterSections");
 
                     b.Navigation("PageHeader");
-
-                    b.Navigation("PrefaceSection");
-
-                    b.Navigation("ReferenceSection");
 
                     b.Navigation("Sections");
                 });
@@ -1311,16 +1004,6 @@ namespace WordGenerator.Api.Migrations
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.PageHeader", b =>
                 {
                     b.Navigation("Logos");
-                });
-
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.PrefaceSection", b =>
-                {
-                    b.Navigation("Elements");
-                });
-
-            modelBuilder.Entity("WordGenerator.Api.Domain.Entities.ReferenceSection", b =>
-                {
-                    b.Navigation("Elements");
                 });
 
             modelBuilder.Entity("WordGenerator.Api.Domain.Entities.SubSection", b =>

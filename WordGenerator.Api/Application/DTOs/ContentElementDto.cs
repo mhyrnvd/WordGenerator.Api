@@ -3,7 +3,7 @@
     public class ContentElementDto
     {
         public long? Id { get; set; }
-        public string Type { get; set; } = "paragraph"; // "paragraph", "image", "table"
+        public string Type { get; set; } = "paragraph"; // "paragraph", "image", "table", "bulletlist"
         public int Order { get; set; }
 
         // برای پاراگراف
@@ -12,8 +12,10 @@
         // برای تصویر
         public ImageItemDto? Image { get; set; }
 
-        // برای جدول - استفاده از TableDataDto
+        // برای جدول
         public TableDataDto? Table { get; set; }
-    }
 
+        // برای Bullet List (جدید)
+        public BulletListDto? BulletList { get; set; }
+    }
 }

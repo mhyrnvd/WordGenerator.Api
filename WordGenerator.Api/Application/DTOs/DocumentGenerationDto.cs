@@ -8,6 +8,34 @@ namespace WordGenerator.Api.Application.DTOs
         public List<MasterSectionDataDto> MasterSections { get; set; } = new();
         public List<SectionDataDto> Sections { get; set; } = new();
         public PageHeaderDto? PageHeader { get; set; }
+
+        // ===== بخش‌های جدید قبل از فهرست مطالب =====
+        public PrefaceSectionDto? Preface { get; set; }      // پیش‌گفتار
+        public ConceptsSectionDto? Concepts { get; set; }    // مفاهیم
+
+        public AttachmentSectionDto? Attachments { get; set; }      // الف) پیوست‌ها
+        public ReferenceSectionDto? References { get; set; }        // ب) References (انگلیسی - چپ‌چین)
+        public DocumentSectionDto? Documents { get; set; }          // پ) مدارک
+    }
+
+    /// <summary>
+    /// بخش پیش‌گفتار - راست‌چین
+    /// </summary>
+    public class PrefaceSectionDto
+    {
+        public string Title { get; set; } = "پیش‌گفتار";
+        public List<ContentElementDto> Elements { get; set; } = new();
+        public bool IsActive { get; set; } = true;
+    }
+
+    /// <summary>
+    /// بخش مفاهیم - راست‌چین
+    /// </summary>
+    public class ConceptsSectionDto
+    {
+        public string Title { get; set; } = "مفاهیم";
+        public List<ContentElementDto> Elements { get; set; } = new();
+        public bool IsActive { get; set; } = true;
     }
 
     /// <summary>
@@ -84,6 +112,10 @@ namespace WordGenerator.Api.Application.DTOs
         public int Width { get; set; }
         public int Order { get; set; }
         public bool IsRowNumberColumn { get; set; }  // optional
+
+        public AttachmentSectionDto? Attachments { get; set; }      // الف) پیوست‌ها
+        public ReferenceSectionDto? References { get; set; }        // ب) References (انگلیسی - چپ‌چین)
+        public DocumentSectionDto? Documents { get; set; }          // پ) مدارک
     }
 
     public class RowDataDto

@@ -27,6 +27,13 @@ namespace WordGenerator.Api.Infra.Context
         public DbSet<TableDataCell> TableCells { get; set; }
         public DbSet<HeaderLogo> HeaderLogos { get; set; }
         public DbSet<PageHeader> PageHeaders { get; set; }
+        public DbSet<BulletList> BulletLists { get; set; } = null!;
+        public DbSet<BulletListItem> BulletListItems { get; set; } = null!;
+        public DbSet<AttachmentSection> AttachmentSections { get; set; } = null!;
+        public DbSet<ReferenceSection> ReferenceSections { get; set; } = null!;
+        public DbSet<DocumentSection> DocumentSections { get; set; } = null!;
+        public DbSet<PrefaceSection> PrefaceSections { get; set; } = null!;
+        public DbSet<ConceptsSection> ConceptsSections { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -46,6 +53,13 @@ namespace WordGenerator.Api.Infra.Context
             modelBuilder.ApplyConfiguration(new DocumentTemplateConfiguration());
             modelBuilder.ApplyConfiguration(new PageHeaderConfiguration());
             modelBuilder.ApplyConfiguration(new HeaderLogoConfiguration());
+            modelBuilder.ApplyConfiguration(new BulletListItemConfiguration());
+            modelBuilder.ApplyConfiguration(new BulletListConfiguration());
+            modelBuilder.ApplyConfiguration(new AttachmentSectionConfiguration());
+            modelBuilder.ApplyConfiguration(new ReferenceSectionConfiguration());
+            modelBuilder.ApplyConfiguration(new DocumentSectionConfiguration());
+            modelBuilder.ApplyConfiguration(new PrefaceSectionConfiguration());
+            modelBuilder.ApplyConfiguration(new ConceptsSectionConfiguration());
         }
     }
 }
