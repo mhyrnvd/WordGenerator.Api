@@ -1220,13 +1220,16 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
+            // ===== اصلاح عنوان جدول با معکوس کردن شماره‌ها =====
+            var fixedTitle = ReverseNumbersInText(title);
+
             // ===== فیلد TC برای ثبت در فهرست جداول =====
             var tcRun = new W.Run();
             var tcFieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
             tcRun.Append(tcFieldChar1);
             var tcFieldCode = new W.FieldCode
             {
-                Text = $"TC \"{title}\" \\f Table \\l 1"
+                Text = $"TC \"{fixedTitle}\" \\f Table \\l 1"
             };
             tcRun.Append(tcFieldCode);
             var tcFieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
@@ -1242,7 +1245,7 @@ namespace WordGenerator.Api.Application.Services
                     new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                     new W.FontSize { Val = "24" }
                 ),
-                new W.Text(title)
+                new W.Text(fixedTitle)
             );
             paragraph.Append(captionRun);
 
@@ -1262,13 +1265,16 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
+            // ===== اصلاح کپشن با معکوس کردن شماره‌ها =====
+            var fixedCaption = ReverseNumbersInText(caption);
+
             // ===== فیلد TC برای ثبت در فهرست تصاویر =====
             var tcRun = new W.Run();
             var tcFieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
             tcRun.Append(tcFieldChar1);
             var tcFieldCode = new W.FieldCode
             {
-                Text = $"TC \"{caption}\" \\f Figure \\l 1"
+                Text = $"TC \"{fixedCaption}\" \\f Figure \\l 1"
             };
             tcRun.Append(tcFieldCode);
             var tcFieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
@@ -1284,13 +1290,49 @@ namespace WordGenerator.Api.Application.Services
                     new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                     new W.FontSize { Val = "24" }
                 ),
-                new W.Text(caption)
+                new W.Text(PrepareRTLText(fixedCaption))
             );
             paragraph.Append(captionRun);
 
             return paragraph;
         }
 
+        /// <summary>
+        /// معکوس کردن اعداد با خط تیره در متن
+        /// مثال: "جدول 1-2-3-" → "جدول 3-2-1-"
+        /// </summary>
+        private string ReverseNumbersInText(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+
+            // ===== پیدا کردن الگوی عدد-عدد با خط تیره =====
+            var pattern = @"(\d+-\d+(?:-\d+)*\-?)";
+            var matches = Regex.Matches(text, pattern);
+
+            if (matches.Count == 0)
+                return text;
+
+            var result = text;
+            foreach (Match match in matches)
+            {
+                var numberPart = match.Groups[1].Value;
+
+                // ===== معکوس کردن شماره =====
+                var parts = numberPart.Split('-', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 1)
+                {
+                    Array.Reverse(parts);
+                    var reversedNumber = string.Join("-", parts);
+                    if (numberPart.EndsWith("-"))
+                        reversedNumber += "-";
+
+                    result = result.Replace(numberPart, reversedNumber);
+                }
+            }
+
+            return result;
+        }
         #endregion
 
         #region Table of Figures and Tables
@@ -2340,21 +2382,57 @@ namespace WordGenerator.Api.Application.Services
                     new W.Justification() { Val = W.JustificationValues.Left },
                     new W.BiDi(),
                     new W.SpacingBetweenLines { After = "120", Before = "120" }
-                ),
-                new W.Run(
+                )
+            );
+
+            // ===== جدا کردن شماره از عنوان =====
+            var match = Regex.Match(text, @"^([\d-]+?)\s+(.+)$");
+
+            if (match.Success)
+            {
+                var numberPart = match.Groups[1].Value;
+                var titlePart = match.Groups[2].Value.Trim();
+
+                // ===== معکوس کردن شماره =====
+                var parts = numberPart.Split('-', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 1)
+                {
+                    Array.Reverse(parts);
+                    var reversedNumber = string.Join("-", parts);
+                    if (numberPart.EndsWith("-"))
+                        reversedNumber += "-";
+                    numberPart = reversedNumber;
+                }
+
+                // ===== کل متن رو با شماره معکوس شده بساز =====
+                var finalText = numberPart + " " + titlePart;
+
+                var run = new W.Run(
                     new W.RunProperties(
                         new W.RunFonts() { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                         new W.FontSize() { Val = SubHeaderFontSize },
                         new W.Bold()
                     ),
-                    //new W.Text(PrepareRTLText($"{sectionNumber}-{text}"))
-                    new W.Text(PrepareRTLText($"{text}"))
-                )
-            );
+                    new W.Text(PrepareRTLText(finalText))
+                );
+                paragraph.Append(run);
+            }
+            else
+            {
+                // ===== اگر شماره‌ای نبود =====
+                var run = new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts() { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                        new W.FontSize() { Val = SubHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(text))
+                );
+                paragraph.Append(run);
+            }
 
             return paragraph;
         }
-
         private W.Paragraph CreateHeading(string text, string fontSize)
         {
             return new W.Paragraph(
