@@ -801,29 +801,29 @@ namespace WordGenerator.Api.Application.Services
                 }
 
                 // بررسی اینکه تصویر قابل باز شدنه
-                try
-                {
-                    using (var ms = new MemoryStream(imageBytes))
-                    {
-                        using (var img = System.Drawing.Image.FromStream(ms))
-                        {
-                            Console.WriteLine($"Image loaded successfully: {img.Width}x{img.Height}");
-                        }
-                    }
-                }
-                catch (Exception imgEx)
-                {
-                    Console.WriteLine($"ERROR: Image is corrupted - {imgEx.Message}");
-                    var errorRun = new W.Run(
-                        new W.RunProperties(
-                            new W.FontSize { Val = "16" },
-                            new W.Color { Val = "FF6600" }
-                        ),
-                        new W.Text($"[تصویر خراب: {imageDto.FileName}]")
-                    );
-                    paragraph.AppendChild(errorRun);
-                    return;
-                }
+                //try
+                //{
+                //    using (var ms = new MemoryStream(imageBytes))
+                //    {
+                //        using (var img = System.Drawing.Image.FromStream(ms))
+                //        {
+                //            Console.WriteLine($"Image loaded successfully: {img.Width}x{img.Height}");
+                //        }
+                //    }
+                //}
+                //catch (Exception imgEx)
+                //{
+                //    Console.WriteLine($"ERROR: Image is corrupted - {imgEx.Message}");
+                //    var errorRun = new W.Run(
+                //        new W.RunProperties(
+                //            new W.FontSize { Val = "16" },
+                //            new W.Color { Val = "FF6600" }
+                //        ),
+                //        new W.Text($"[تصویر خراب: {imageDto.FileName}]")
+                //    );
+                //    paragraph.AppendChild(errorRun);
+                //    return;
+                //}
 
                 var imagePartType = DetectImagePartType(imageBytes);
                 Console.WriteLine($"Image Type: {imagePartType}");
@@ -846,26 +846,28 @@ namespace WordGenerator.Api.Application.Services
                 long cx, cy;
 
                 if (imageDto.Width <= 0)
-                    imageDto.Width = 60;
-
-                if (imageDto.Height <= 0)
                 {
-                    try
-                    {
-                        using (var ms = new MemoryStream(imageBytes))
-                        {
-                            using (var img = System.Drawing.Image.FromStream(ms))
-                            {
-                                var ratio = (double)img.Width / img.Height;
-                                imageDto.Height = (int)(imageDto.Width / ratio);
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        imageDto.Height = (int)(imageDto.Width * 0.75);
-                    }
+                    imageDto.Width = 60;
+                    imageDto.Height = (int)(imageDto.Width * 0.75);
                 }
+
+                //if (imageDto.Height <= 0)
+                //{
+                //    try
+                //    {
+                //        using (var ms = new MemoryStream(imageBytes))
+                //        {
+                //            using (var img = System.Drawing.Image.FromStream(ms))
+                //            {
+                //                var ratio = (double)img.Width / img.Height;
+                //                imageDto.Height = (int)(imageDto.Width / ratio);
+                //            }
+                //        }
+                //    }
+                //    catch
+                //    {
+                //    }
+                //}
 
                 cx = (long)(imageDto.Width * 9525);
                 cy = (long)(imageDto.Height * 9525);
@@ -2067,30 +2069,30 @@ namespace WordGenerator.Api.Application.Services
                 }
 
                 // ===== 3. بررسی اینکه تصویر واقعاً قابل باز شدنه =====
-                try
-                {
-                    using (var ms = new MemoryStream(imageBytes))
-                    {
-                        using (var img = System.Drawing.Image.FromStream(ms))
-                        {
-                            Console.WriteLine($"Image loaded successfully: {img.Width}x{img.Height}");
-                        }
-                    }
-                }
-                catch (Exception imgEx)
-                {
-                    Console.WriteLine($"ERROR: Image is corrupted - {imgEx.Message}");
-                    // تصویر خرابه، یه placeholder نشون بده
-                    var errorRun = new W.Run(
-                        new W.RunProperties(
-                            new W.FontSize { Val = "24" },
-                            new W.Color { Val = "FF0000" }
-                        ),
-                        new W.Text($"[تصویر خراب: {imageDto.FileName}]")
-                    );
-                    paragraph.AppendChild(errorRun);
-                    return;
-                }
+                //try
+                //{
+                //    using (var ms = new MemoryStream(imageBytes))
+                //    {
+                //        using (var img = System.Drawing.Image.FromStream(ms))
+                //        {
+                //            Console.WriteLine($"Image loaded successfully: {img.Width}x{img.Height}");
+                //        }
+                //    }
+                //}
+                //catch (Exception imgEx)
+                //{
+                //    Console.WriteLine($"ERROR: Image is corrupted - {imgEx.Message}");
+                //    // تصویر خرابه، یه placeholder نشون بده
+                //    var errorRun = new W.Run(
+                //        new W.RunProperties(
+                //            new W.FontSize { Val = "24" },
+                //            new W.Color { Val = "FF0000" }
+                //        ),
+                //        new W.Text($"[تصویر خراب: {imageDto.FileName}]")
+                //    );
+                //    paragraph.AppendChild(errorRun);
+                //    return;
+                //}
 
                 // ===== 4. تشخیص نوع تصویر =====
                 var imagePartType = DetectImagePartType(imageBytes);
@@ -2117,26 +2119,28 @@ namespace WordGenerator.Api.Application.Services
                 long cx, cy;
 
                 if (imageDto.Width <= 0)
-                    imageDto.Width = 400;
-
-                if (imageDto.Height <= 0)
                 {
-                    try
-                    {
-                        using (var ms = new MemoryStream(imageBytes))
-                        {
-                            using (var img = System.Drawing.Image.FromStream(ms))
-                            {
-                                var ratio = (double)img.Width / img.Height;
-                                imageDto.Height = (int)(imageDto.Width / ratio);
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        imageDto.Height = (int)(imageDto.Width * 0.75);
-                    }
+                    imageDto.Width = 400;
+                    imageDto.Height = (int)(imageDto.Width * 0.75);
                 }
+
+                //if (imageDto.Height <= 0)
+                //{
+                //    try
+                //    {
+                //        using (var ms = new MemoryStream(imageBytes))
+                //        {
+                //            using (var img = System.Drawing.Image.FromStream(ms))
+                //            {
+                //                var ratio = (double)img.Width / img.Height;
+                //                imageDto.Height = (int)(imageDto.Width / ratio);
+                //            }
+                //        }
+                //    }
+                //    catch
+                //    {
+                //    }
+                //}
 
                 cx = (long)(imageDto.Width * 9525);
                 cy = (long)(imageDto.Height * 9525);
