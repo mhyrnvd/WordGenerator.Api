@@ -84,11 +84,11 @@ namespace WordGenerator.Api.Application.Services
                     body.Append(CreateTableOfContents());
                     body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
 
-                    body.Append(CreateHeading("فهرست تصاویر", "28"));
+                    body.Append(CreateHeading("فهرست تصاویر", "32"));
                     body.Append(CreateTableOfFigures());
                     body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
 
-                    body.Append(CreateHeading("فهرست جداول", "28"));
+                    body.Append(CreateHeading("فهرست جداول", "32"));
                     body.Append(CreateTableOfTables());
                     body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
 
@@ -1220,35 +1220,31 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
-            string captionNumber = $"{sectionNumber}-{tableNumberInSection}";
+            // ===== فیلد TC برای ثبت در فهرست جداول =====
+            var tcRun = new W.Run();
+            var tcFieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            tcRun.Append(tcFieldChar1);
+            var tcFieldCode = new W.FieldCode
+            {
+                Text = $"TC \"{title}\" \\f Table \\l 1"
+            };
+            tcRun.Append(tcFieldCode);
+            var tcFieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
+            tcRun.Append(tcFieldChar2);
+            tcRun.Append(new W.Text(""));
+            var tcFieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
+            tcRun.Append(tcFieldChar3);
+            paragraph.Append(tcRun);
 
-            var run = new W.Run();
-            var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
-            var fieldCode = new W.FieldCode { Text = $"SEQ Table_{sectionNumber} \\* ARABIC" };
-            var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
-            var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
-
-            run.Append(fieldChar1);
-            run.Append(fieldCode);
-            run.Append(fieldChar2);
-            run.Append(fieldChar3);
-
+            // ===== متن عنوان =====
             var captionRun = new W.Run(
                 new W.RunProperties(
                     new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                     new W.FontSize { Val = "24" }
                 ),
-                //new W.Text($"جدول {captionNumber}:{title}")
-                new W.Text($"{title}")
+                new W.Text(title)
             );
-
-            paragraph.Append(run);
             paragraph.Append(captionRun);
-
-            var bookmarkStart = new W.BookmarkStart { Id = $"Table_{sectionNumber}_{tableNumberInSection}", Name = $"Table_{sectionNumber}_{tableNumberInSection}" };
-            var bookmarkEnd = new W.BookmarkEnd { Id = $"Table_{sectionNumber}_{tableNumberInSection}" };
-            paragraph.InsertAt(bookmarkStart, 0);
-            paragraph.Append(bookmarkEnd);
 
             return paragraph;
         }
@@ -1266,35 +1262,31 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
-            string captionNumber = $"{sectionNumber}-{imageNumberInSection}";
+            // ===== فیلد TC برای ثبت در فهرست تصاویر =====
+            var tcRun = new W.Run();
+            var tcFieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            tcRun.Append(tcFieldChar1);
+            var tcFieldCode = new W.FieldCode
+            {
+                Text = $"TC \"{caption}\" \\f Figure \\l 1"
+            };
+            tcRun.Append(tcFieldCode);
+            var tcFieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
+            tcRun.Append(tcFieldChar2);
+            tcRun.Append(new W.Text(""));
+            var tcFieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
+            tcRun.Append(tcFieldChar3);
+            paragraph.Append(tcRun);
 
-            var run = new W.Run();
-            var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
-            var fieldCode = new W.FieldCode { Text = $"SEQ Figure_{sectionNumber} \\* ARABIC" };
-            var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
-            var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
-
-            run.Append(fieldChar1);
-            run.Append(fieldCode);
-            run.Append(fieldChar2);
-            run.Append(fieldChar3);
-
+            // ===== متن کپشن =====
             var captionRun = new W.Run(
                 new W.RunProperties(
                     new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                     new W.FontSize { Val = "24" }
                 ),
-                //new W.Text($"تصویر {captionNumber}: {caption}")
-                new W.Text($"{caption}")
+                new W.Text(caption)
             );
-
-            paragraph.Append(run);
             paragraph.Append(captionRun);
-
-            var bookmarkStart = new W.BookmarkStart { Id = $"Figure_{sectionNumber}_{imageNumberInSection}", Name = $"Figure_{sectionNumber}_{imageNumberInSection}" };
-            var bookmarkEnd = new W.BookmarkEnd { Id = $"Figure_{sectionNumber}_{imageNumberInSection}" };
-            paragraph.InsertAt(bookmarkStart, 0);
-            paragraph.Append(bookmarkEnd);
 
             return paragraph;
         }
@@ -1315,8 +1307,8 @@ namespace WordGenerator.Api.Application.Services
             paragraph.Append(paraProps);
 
             var run = new W.Run();
-            var fieldCode = new W.FieldCode { Text = "TOC \\c \"Figure\" \\h \\* MERGEFORMAT" };
             var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            var fieldCode = new W.FieldCode { Text = "TOC \\f Figure \\h \\* MERGEFORMAT" };
             var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
             var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
             var placeholderText = new W.Text("【اینجا کلیک کرده و F9 بزنید】");
@@ -1343,8 +1335,8 @@ namespace WordGenerator.Api.Application.Services
             paragraph.Append(paraProps);
 
             var run = new W.Run();
-            var fieldCode = new W.FieldCode { Text = "TOC \\c \"Table\" \\h \\* MERGEFORMAT" };
             var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            var fieldCode = new W.FieldCode { Text = "TOC \\f Table \\h \\* MERGEFORMAT" };
             var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
             var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
             var placeholderText = new W.Text("【اینجا کلیک کرده و F9 بزنید】");
