@@ -1221,7 +1221,8 @@ namespace WordGenerator.Api.Application.Services
             );
 
             // ===== اصلاح عنوان جدول با معکوس کردن شماره‌ها =====
-            var fixedTitle = ReverseNumbersInText(title);
+            //var fixedTitle = ReverseNumbersInText(title);
+            var fixedTitle = title;
 
             // ===== فیلد TC برای ثبت در فهرست جداول =====
             var tcRun = new W.Run();
@@ -1266,7 +1267,8 @@ namespace WordGenerator.Api.Application.Services
             );
 
             // ===== اصلاح کپشن با معکوس کردن شماره‌ها =====
-            var fixedCaption = ReverseNumbersInText(caption);
+            //var fixedCaption = ReverseNumbersInText(caption);
+            var fixedCaption = caption;
 
             // ===== فیلد TC برای ثبت در فهرست تصاویر =====
             var tcRun = new W.Run();
