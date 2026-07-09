@@ -84,11 +84,11 @@ namespace WordGenerator.Api.Application.Services
                     body.Append(CreateTableOfContents());
                     body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
 
-                    body.Append(CreateHeading("فهرست تصاویر", "28"));
+                    body.Append(CreateHeading("فهرست تصاویر", "32"));
                     body.Append(CreateTableOfFigures());
                     body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
 
-                    body.Append(CreateHeading("فهرست جداول", "28"));
+                    body.Append(CreateHeading("فهرست جداول", "32"));
                     body.Append(CreateTableOfTables());
                     body.Append(new W.Paragraph(new W.Run(new W.Text(""))));
 
@@ -1220,34 +1220,35 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
-            string captionNumber = $"{sectionNumber}-{tableNumberInSection}";
+            // ===== اصلاح عنوان جدول با معکوس کردن شماره‌ها =====
+            //var fixedTitle = ReverseNumbersInText(title);
+            var fixedTitle = title;
 
-            var run = new W.Run();
-            var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
-            var fieldCode = new W.FieldCode { Text = $"SEQ Table_{sectionNumber} \\* ARABIC" };
-            var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
-            var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
+            // ===== فیلد TC برای ثبت در فهرست جداول =====
+            var tcRun = new W.Run();
+            var tcFieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            tcRun.Append(tcFieldChar1);
+            var tcFieldCode = new W.FieldCode
+            {
+                Text = $"TC \"{fixedTitle}\" \\f Table \\l 1"
+            };
+            tcRun.Append(tcFieldCode);
+            var tcFieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
+            tcRun.Append(tcFieldChar2);
+            tcRun.Append(new W.Text(""));
+            var tcFieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
+            tcRun.Append(tcFieldChar3);
+            paragraph.Append(tcRun);
 
-            run.Append(fieldChar1);
-            run.Append(fieldCode);
-            run.Append(fieldChar2);
-            run.Append(fieldChar3);
-
+            // ===== متن عنوان =====
             var captionRun = new W.Run(
                 new W.RunProperties(
                     new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                     new W.FontSize { Val = "24" }
                 ),
-                new W.Text($"جدول {captionNumber}: {title}")
+                new W.Text(fixedTitle)
             );
-
-            paragraph.Append(run);
             paragraph.Append(captionRun);
-
-            var bookmarkStart = new W.BookmarkStart { Id = $"Table_{sectionNumber}_{tableNumberInSection}", Name = $"Table_{sectionNumber}_{tableNumberInSection}" };
-            var bookmarkEnd = new W.BookmarkEnd { Id = $"Table_{sectionNumber}_{tableNumberInSection}" };
-            paragraph.InsertAt(bookmarkStart, 0);
-            paragraph.Append(bookmarkEnd);
 
             return paragraph;
         }
@@ -1265,38 +1266,75 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
-            string captionNumber = $"{sectionNumber}-{imageNumberInSection}";
+            // ===== اصلاح کپشن با معکوس کردن شماره‌ها =====
+            //var fixedCaption = ReverseNumbersInText(caption);
+            var fixedCaption = caption;
 
-            var run = new W.Run();
-            var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
-            var fieldCode = new W.FieldCode { Text = $"SEQ Figure_{sectionNumber} \\* ARABIC" };
-            var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
-            var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
+            // ===== فیلد TC برای ثبت در فهرست تصاویر =====
+            var tcRun = new W.Run();
+            var tcFieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            tcRun.Append(tcFieldChar1);
+            var tcFieldCode = new W.FieldCode
+            {
+                Text = $"TC \"{fixedCaption}\" \\f Figure \\l 1"
+            };
+            tcRun.Append(tcFieldCode);
+            var tcFieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
+            tcRun.Append(tcFieldChar2);
+            tcRun.Append(new W.Text(""));
+            var tcFieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
+            tcRun.Append(tcFieldChar3);
+            paragraph.Append(tcRun);
 
-            run.Append(fieldChar1);
-            run.Append(fieldCode);
-            run.Append(fieldChar2);
-            run.Append(fieldChar3);
-
+            // ===== متن کپشن =====
             var captionRun = new W.Run(
                 new W.RunProperties(
                     new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                     new W.FontSize { Val = "24" }
                 ),
-                new W.Text($"تصویر {captionNumber}: {caption}")
+                new W.Text(PrepareRTLText(fixedCaption))
             );
-
-            paragraph.Append(run);
             paragraph.Append(captionRun);
-
-            var bookmarkStart = new W.BookmarkStart { Id = $"Figure_{sectionNumber}_{imageNumberInSection}", Name = $"Figure_{sectionNumber}_{imageNumberInSection}" };
-            var bookmarkEnd = new W.BookmarkEnd { Id = $"Figure_{sectionNumber}_{imageNumberInSection}" };
-            paragraph.InsertAt(bookmarkStart, 0);
-            paragraph.Append(bookmarkEnd);
 
             return paragraph;
         }
 
+        /// <summary>
+        /// معکوس کردن اعداد با خط تیره در متن
+        /// مثال: "جدول 1-2-3-" → "جدول 3-2-1-"
+        /// </summary>
+        private string ReverseNumbersInText(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+
+            // ===== پیدا کردن الگوی عدد-عدد با خط تیره =====
+            var pattern = @"(\d+-\d+(?:-\d+)*\-?)";
+            var matches = Regex.Matches(text, pattern);
+
+            if (matches.Count == 0)
+                return text;
+
+            var result = text;
+            foreach (Match match in matches)
+            {
+                var numberPart = match.Groups[1].Value;
+
+                // ===== معکوس کردن شماره =====
+                var parts = numberPart.Split('-', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 1)
+                {
+                    Array.Reverse(parts);
+                    var reversedNumber = string.Join("-", parts);
+                    if (numberPart.EndsWith("-"))
+                        reversedNumber += "-";
+
+                    result = result.Replace(numberPart, reversedNumber);
+                }
+            }
+
+            return result;
+        }
         #endregion
 
         #region Table of Figures and Tables
@@ -1313,8 +1351,8 @@ namespace WordGenerator.Api.Application.Services
             paragraph.Append(paraProps);
 
             var run = new W.Run();
-            var fieldCode = new W.FieldCode { Text = "TOC \\c \"Figure\" \\h \\* MERGEFORMAT" };
             var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            var fieldCode = new W.FieldCode { Text = "TOC \\f Figure \\h \\* MERGEFORMAT" };
             var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
             var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
             var placeholderText = new W.Text("【اینجا کلیک کرده و F9 بزنید】");
@@ -1341,8 +1379,8 @@ namespace WordGenerator.Api.Application.Services
             paragraph.Append(paraProps);
 
             var run = new W.Run();
-            var fieldCode = new W.FieldCode { Text = "TOC \\c \"Table\" \\h \\* MERGEFORMAT" };
             var fieldChar1 = new W.FieldChar { FieldCharType = W.FieldCharValues.Begin };
+            var fieldCode = new W.FieldCode { Text = "TOC \\f Table \\h \\* MERGEFORMAT" };
             var fieldChar2 = new W.FieldChar { FieldCharType = W.FieldCharValues.Separate };
             var fieldChar3 = new W.FieldChar { FieldCharType = W.FieldCharValues.End };
             var placeholderText = new W.Text("【اینجا کلیک کرده و F9 بزنید】");
@@ -2346,20 +2384,57 @@ namespace WordGenerator.Api.Application.Services
                     new W.Justification() { Val = W.JustificationValues.Left },
                     new W.BiDi(),
                     new W.SpacingBetweenLines { After = "120", Before = "120" }
-                ),
-                new W.Run(
+                )
+            );
+
+            // ===== جدا کردن شماره از عنوان =====
+            var match = Regex.Match(text, @"^([\d-]+?)\s+(.+)$");
+
+            if (match.Success)
+            {
+                var numberPart = match.Groups[1].Value;
+                var titlePart = match.Groups[2].Value.Trim();
+
+                // ===== معکوس کردن شماره =====
+                var parts = numberPart.Split('-', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 1)
+                {
+                    Array.Reverse(parts);
+                    var reversedNumber = string.Join("-", parts);
+                    if (numberPart.EndsWith("-"))
+                        reversedNumber += "-";
+                    numberPart = reversedNumber;
+                }
+
+                // ===== کل متن رو با شماره معکوس شده بساز =====
+                var finalText = numberPart + " " + titlePart;
+
+                var run = new W.Run(
                     new W.RunProperties(
                         new W.RunFonts() { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                         new W.FontSize() { Val = SubHeaderFontSize },
                         new W.Bold()
                     ),
-                    new W.Text(PrepareRTLText($"{sectionNumber}- {text}"))
-                )
-            );
+                    new W.Text(PrepareRTLText(finalText))
+                );
+                paragraph.Append(run);
+            }
+            else
+            {
+                // ===== اگر شماره‌ای نبود =====
+                var run = new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts() { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
+                        new W.FontSize() { Val = SubHeaderFontSize },
+                        new W.Bold()
+                    ),
+                    new W.Text(PrepareRTLText(text))
+                );
+                paragraph.Append(run);
+            }
 
             return paragraph;
         }
-
         private W.Paragraph CreateHeading(string text, string fontSize)
         {
             return new W.Paragraph(
@@ -2655,7 +2730,18 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
-            paragraph.Append(CreateTableCellRun(PrepareRTLText(text), true, true));
+            // ===== تشخیص فارسی یا انگلیسی =====
+            bool isPersian = false;
+            foreach (char c in text)
+            {
+                if (!IsEnglish(c))
+                {
+                    isPersian = true;
+                    break;
+                }
+            }
+
+            paragraph.Append(CreateTableCellRun(text, isPersian, true));
             cell.Append(paragraph);
 
             var cellProps = new W.TableCellProperties(
@@ -2752,14 +2838,18 @@ namespace WordGenerator.Api.Application.Services
 
         private W.Run CreateTableCellRun(string text, bool isPersian, bool isHeader)
         {
+            // ===== انتخاب فونت بر اساس زبان =====
+            var fontName = isPersian ? PersianFont : EnglishFont;
+            var fontSize = isHeader ? TableHeaderFontSize : (isPersian ? PersianFontSize : EnglishFontSize);
+
             var runProperties = new W.RunProperties(
                 new W.RunFonts
                 {
-                    Ascii = isPersian ? PersianFont : EnglishFont,
-                    HighAnsi = isPersian ? PersianFont : EnglishFont,
-                    ComplexScript = isPersian ? PersianFont : EnglishFont
+                    Ascii = fontName,
+                    HighAnsi = fontName,
+                    ComplexScript = fontName
                 },
-                new W.FontSize { Val = isHeader ? TableHeaderFontSize : (isPersian ? PersianFontSize : EnglishFontSize) }
+                new W.FontSize { Val = fontSize }
             );
 
             if (isHeader)
