@@ -2822,7 +2822,7 @@ namespace WordGenerator.Api.Application.Services
         private W.Run CreateTableCellRun(string text, bool isPersian, bool isHeader)
         {
             var fontName = isPersian ? PersianFont : EnglishFont;
-            var fontSize = isHeader ? TableHeaderFontSize : (isPersian ? PersianFontSize : EnglishFontSize);
+            var fontSize = isHeader ? TableHeaderFontSize : "11";
 
             var runProperties = new W.RunProperties(
                 new W.RunFonts
