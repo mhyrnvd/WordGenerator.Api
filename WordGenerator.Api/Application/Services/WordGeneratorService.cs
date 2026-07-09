@@ -1238,7 +1238,8 @@ namespace WordGenerator.Api.Application.Services
                     new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                     new W.FontSize { Val = "24" }
                 ),
-                new W.Text($"جدول {captionNumber}: {title}")
+                //new W.Text($"جدول {captionNumber}:{title}")
+                new W.Text($"{title}")
             );
 
             paragraph.Append(run);
@@ -1283,7 +1284,8 @@ namespace WordGenerator.Api.Application.Services
                     new W.RunFonts { Ascii = PersianFont, HighAnsi = PersianFont, ComplexScript = PersianFont },
                     new W.FontSize { Val = "24" }
                 ),
-                new W.Text($"تصویر {captionNumber}: {caption}")
+                //new W.Text($"تصویر {captionNumber}: {caption}")
+                new W.Text($"{caption}")
             );
 
             paragraph.Append(run);
@@ -2353,7 +2355,8 @@ namespace WordGenerator.Api.Application.Services
                         new W.FontSize() { Val = SubHeaderFontSize },
                         new W.Bold()
                     ),
-                    new W.Text(PrepareRTLText($"{sectionNumber}- {text}"))
+                    //new W.Text(PrepareRTLText($"{sectionNumber}-{text}"))
+                    new W.Text(PrepareRTLText($"{text}"))
                 )
             );
 
