@@ -2728,7 +2728,18 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
-            paragraph.Append(CreateTableCellRun(PrepareRTLText(text), true, true));
+            // ===== تشخیص فارسی یا انگلیسی =====
+            bool isPersian = false;
+            foreach (char c in text)
+            {
+                if (!IsEnglish(c))
+                {
+                    isPersian = true;
+                    break;
+                }
+            }
+
+            paragraph.Append(CreateTableCellRun(text, isPersian, true));
             cell.Append(paragraph);
 
             var cellProps = new W.TableCellProperties(
@@ -2825,14 +2836,18 @@ namespace WordGenerator.Api.Application.Services
 
         private W.Run CreateTableCellRun(string text, bool isPersian, bool isHeader)
         {
+            // ===== انتخاب فونت بر اساس زبان =====
+            var fontName = isPersian ? PersianFont : EnglishFont;
+            var fontSize = isHeader ? TableHeaderFontSize : (isPersian ? PersianFontSize : EnglishFontSize);
+
             var runProperties = new W.RunProperties(
                 new W.RunFonts
                 {
-                    Ascii = isPersian ? PersianFont : EnglishFont,
-                    HighAnsi = isPersian ? PersianFont : EnglishFont,
-                    ComplexScript = isPersian ? PersianFont : EnglishFont
+                    Ascii = fontName,
+                    HighAnsi = fontName,
+                    ComplexScript = fontName
                 },
-                new W.FontSize { Val = isHeader ? TableHeaderFontSize : (isPersian ? PersianFontSize : EnglishFontSize) }
+                new W.FontSize { Val = fontSize }
             );
 
             if (isHeader)
