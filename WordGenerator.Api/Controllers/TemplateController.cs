@@ -501,6 +501,7 @@ namespace WordGenerator.Api.Controllers
                     .ThenInclude(c => c.Elements)
                         .ThenInclude(e => e.BulletList)
                             .ThenInclude(b => b.Items)
+                            .AsSplitQuery()
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (template == null)
@@ -613,7 +614,7 @@ namespace WordGenerator.Api.Controllers
                     Elements = template.ConceptsSection.Elements.OrderBy(e => e.Order).Select(e => MapContentElementToDto(e))
                 }
             });
-        }
+        }   
 
         // =========================
         // DELETE TEMPLATE

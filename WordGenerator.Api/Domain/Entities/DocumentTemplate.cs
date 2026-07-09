@@ -21,5 +21,7 @@
         public virtual AttachmentSection? AttachmentSection { get; set; }
         public virtual ReferenceSection? ReferenceSection { get; set; }
         public virtual DocumentSection? DocumentSection { get; set; }
+        public bool IsDeleted { get; set; } = false; // این رو اضافه کنید
+        public DateTime? DeletedAt { get; set; }
     }
 }
