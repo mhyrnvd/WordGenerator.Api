@@ -736,7 +736,13 @@ namespace WordGenerator.Api.Application.Services
             {
                 case "paragraph":
                     if (!string.IsNullOrEmpty(element.Text))
-                        body.Append(CreateParagraph(element.Text));
+                    {
+                        var paragraphs = CreateParagraphsFromText(element.Text);
+                        foreach (var paragraph in paragraphs)
+                        {
+                            body.Append(paragraph);
+                        }
+                    }
                     break;
 
                 case "image":
@@ -899,55 +905,6 @@ namespace WordGenerator.Api.Application.Services
                     break;
             }
         }
-
-        private void RenderElementFromEntityWithoutCaption(W.Body body, ContentElement element, MainDocumentPart mainPart)
-        {
-            switch (element.Type)
-            {
-                case ContentElementType.Paragraph:
-                    if (!string.IsNullOrEmpty(element.ParagraphText))
-                        body.Append(CreateParagraph(element.ParagraphText));
-                    break;
-
-                case ContentElementType.Image:
-                    if (element.Image != null)
-                    {
-                        var imageDto = MapImageToDto(element.Image);
-                        var imageParagraph = new W.Paragraph(
-                            new W.ParagraphProperties(
-                                new W.Justification { Val = W.JustificationValues.Center },
-                                new W.SpacingBetweenLines { After = "200" }
-                            )
-                        );
-                        InsertImageToParagraph(imageParagraph, imageDto, mainPart);
-                        body.Append(imageParagraph);
-                    }
-                    break;
-
-                case ContentElementType.Table:
-                    if (element.Table != null)
-                    {
-                        var tableDto = MapTableToDto(element.Table);
-                        var table = CreateTableFromDto(tableDto);
-                        body.Append(table);
-                        body.Append(new W.Paragraph(new W.Run(new W.Break())));
-                    }
-                    break;
-
-                case ContentElementType.BulletList:
-                    if (element.BulletList != null)
-                    {
-                        var bulletListDto = MapBulletListToDto(element.BulletList);
-                        var bulletParagraphs = CreateBulletList(bulletListDto);
-                        foreach (var paragraph in bulletParagraphs)
-                        {
-                            body.Append(paragraph);
-                        }
-                    }
-                    break;
-            }
-        }
-
         #endregion
 
         #region Caption Methods
@@ -2596,10 +2553,12 @@ namespace WordGenerator.Api.Application.Services
                 )
             );
 
+            text = text?.Replace("\r", "").TrimEnd('\n');
+
             var runs = new List<W.Run>();
             var current = new List<char>();
             bool? currentIsPersian = null;
-            var preparedText = PrepareRTLText(text);
+            var preparedText = PrepareRTLText(text ?? "");
 
             foreach (var c in preparedText)
             {
@@ -2642,6 +2601,35 @@ namespace WordGenerator.Api.Application.Services
             );
         }
 
+        private List<W.Paragraph> CreateParagraphsFromText(string text)
+        {
+            var paragraphs = new List<W.Paragraph>();
+
+            if (string.IsNullOrEmpty(text))
+            {
+                paragraphs.Add(new W.Paragraph());
+                return paragraphs;
+            }
+
+            // تقسیم متن بر اساس خط جدید (\n) و حذف خطوط خالی
+            var lines = text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var line in lines)
+            {
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    paragraphs.Add(CreateParagraph(line.Trim()));
+                }
+            }
+
+            // اگر هیچ خطی وجود نداشت، یک پاراگراف خالی اضافه کن
+            if (paragraphs.Count == 0)
+            {
+                paragraphs.Add(new W.Paragraph());
+            }
+
+            return paragraphs;
+        }
         #endregion
 
         #region Table Cell Creation
