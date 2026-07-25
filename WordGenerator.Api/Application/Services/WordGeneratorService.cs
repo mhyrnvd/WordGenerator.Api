@@ -3,18 +3,18 @@ using DocumentFormat.OpenXml.Drawing;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
 using System.Text.RegularExpressions;
 using WordGenerator.Api.Application.DTOs;
 using WordGenerator.Api.Application.Requests;
 using WordGenerator.Api.Domain.Entities;
 using WordGenerator.Api.Domain.Enums;
 using WordGenerator.Api.Infra.Context;
-
-// ===== Using aliases =====
-using W = DocumentFormat.OpenXml.Wordprocessing;
 using D = DocumentFormat.OpenXml.Drawing;
 using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
+// ===== Using aliases =====
+using W = DocumentFormat.OpenXml.Wordprocessing;
 
 namespace WordGenerator.Api.Application.Services
 {
@@ -2587,18 +2587,48 @@ namespace WordGenerator.Api.Application.Services
 
         private W.Run CreateRunForParagraph(string text, bool isPersian)
         {
-            return new W.Run(
-                new W.RunProperties(
-                    new W.RunFonts()
-                    {
-                        Ascii = isPersian ? PersianFont : EnglishFont,
-                        HighAnsi = isPersian ? PersianFont : EnglishFont,
-                        ComplexScript = isPersian ? PersianFont : EnglishFont
-                    },
-                    new W.FontSize() { Val = isPersian ? PersianFontSize : EnglishFontSize }
-                ),
-                new W.Text(text)
-            );
+            if (isPersian)
+            {
+                return new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts()
+                        {
+                            Ascii = PersianFont,
+                            HighAnsi = PersianFont,
+                            ComplexScript = PersianFont
+                        },
+                        new W.FontSize() { Val = PersianFontSize }
+                    ),
+                    new W.Text(text)
+                );
+            }
+            else
+            {
+                // ===== متن انگلیسی را با فاصله‌های اصلی حفظ کن =====
+                // مهم: از کلمات جدا شده با فاصله استفاده کن
+                var words = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var preservedText = string.Join(" ", words);
+
+                var run = new W.Run(
+                    new W.RunProperties(
+                        new W.RunFonts()
+                        {
+                            Ascii = EnglishFont,
+                            HighAnsi = EnglishFont,
+                            ComplexScript = EnglishFont
+                        },
+                        new W.FontSize() { Val = EnglishFontSize },
+                        // اضافه کردن Spacing برای بهبود نمایش
+                        new W.Spacing() { Val = 5 }
+                    )
+                );
+
+                var textElement = new W.Text(preservedText);
+                textElement.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
+                run.Append(textElement);
+
+                return run;
+            }
         }
 
         private List<W.Paragraph> CreateParagraphsFromText(string text)
@@ -2611,7 +2641,18 @@ namespace WordGenerator.Api.Application.Services
                 return paragraphs;
             }
 
-            // تقسیم متن بر اساس خط جدید (\n) و حذف خطوط خالی
+            // ===== حفظ فاصله‌ها =====
+            // جایگزینی فاصله‌های غیر استاندارد با فاصله معمولی
+            text = text.Replace('\u200B', ' '); // Zero Width Space
+            text = text.Replace('\u200C', ' '); // Zero Width Non-Joiner
+            text = text.Replace('\u200D', ' '); // Zero Width Joiner
+
+            // اطمینان از وجود فاصله بین کلمات انگلیسی
+            // "Corrosivityofsoilsonsteel" -> "Corrosivity of soils on steel"
+            text = Regex.Replace(text, @"([a-z])([A-Z])", "$1 $2");
+            text = Regex.Replace(text, @"([A-Z])([A-Z][a-z])", "$1 $2");
+
+            // ===== حالا متن را به خطوط تقسیم کن =====
             var lines = text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (var line in lines)
@@ -2622,7 +2663,6 @@ namespace WordGenerator.Api.Application.Services
                 }
             }
 
-            // اگر هیچ خطی وجود نداشت، یک پاراگراف خالی اضافه کن
             if (paragraphs.Count == 0)
             {
                 paragraphs.Add(new W.Paragraph());
@@ -2946,13 +2986,76 @@ namespace WordGenerator.Api.Application.Services
         #region Text Helpers
 
         private string PrepareRTLText(string text)
-        {
+         {
             if (string.IsNullOrWhiteSpace(text))
                 return text;
 
-            text = Regex.Replace(text, @"«([^»]*)»", m => "\u200F»" + m.Groups[1].Value + "«\u200F");
-            text = Regex.Replace(text, @"\((.*?)\)", m => "\u200F)" + m.Groups[1].Value + "(\u200F");
-            return "\u202B" + text + "\u202C";
+            // ===== فقط برای متن‌های فارسی از RTL استفاده کن =====
+            // اگر متن شامل حروف فارسی نیست، آن را بدون تغییر برگردان
+            bool hasPersian = text.Any(c => !IsEnglish(c) && c > '\u0600');
+
+            if (!hasPersian)
+            {
+                // متن انگلیسی - از LTR استفاده کن
+                return "\u200E" + text + "\u200E";
+            }
+
+            // ===== متن مخلوط - هر بخش را جداگانه پردازش کن =====
+            var result = new StringBuilder();
+            var current = new StringBuilder();
+            bool? currentIsPersian = null;
+
+            foreach (char c in text)
+            {
+                bool isPersian = !IsEnglish(c);
+
+                if (currentIsPersian == null)
+                {
+                    currentIsPersian = isPersian;
+                }
+                else if (currentIsPersian != isPersian)
+                {
+                    // ذخیره بخش قبلی
+                    if (current.Length > 0)
+                    {
+                        if (currentIsPersian.Value)
+                        {
+                            result.Append("\u200F");
+                            result.Append(current.ToString());
+                            result.Append("\u200F");
+                        }
+                        else
+                        {
+                            result.Append("\u200E");
+                            result.Append(current.ToString());
+                            result.Append("\u200E");
+                        }
+                        current.Clear();
+                    }
+                    currentIsPersian = isPersian;
+                }
+
+                current.Append(c);
+            }
+
+            // ذخیره بخش آخر
+            if (current.Length > 0 && currentIsPersian.HasValue)
+            {
+                if (currentIsPersian.Value)
+                {
+                    result.Append("\u200F");
+                    result.Append(current.ToString());
+                    result.Append("\u200F");
+                }
+                else
+                {
+                    result.Append("\u200E");
+                    result.Append(current.ToString());
+                    result.Append("\u200E");
+                }
+            }
+
+            return result.ToString();
         }
 
         private bool IsEnglish(char c)
