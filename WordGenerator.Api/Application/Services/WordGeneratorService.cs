@@ -2547,41 +2547,77 @@ namespace WordGenerator.Api.Application.Services
             var paragraph = new W.Paragraph(
                 new W.ParagraphProperties(
                     new W.BiDi(),
-                    new W.Justification() { Val = W.JustificationValues.Left },
-                    new W.Indentation() { FirstLine = "397" },
-                    new W.SpacingBetweenLines() { Line = "360", LineRule = W.LineSpacingRuleValues.Auto }
+                    new W.Justification()
+                    {
+                        Val = W.JustificationValues.Left
+                    },
+                    new W.Indentation()
+                    {
+                        FirstLine = "397"
+                    },
+                    new W.SpacingBetweenLines()
+                    {
+                        Line = "360",
+                        LineRule = W.LineSpacingRuleValues.Auto
+                    }
                 )
             );
 
-            text = text?.Replace("\r", "").TrimEnd('\n');
+            text = text?
+                .Replace("\r", "")
+                .TrimEnd('\n');
 
-            var runs = new List<W.Run>();
-            var current = new List<char>();
-            bool? currentIsPersian = null;
             var preparedText = PrepareRTLText(text ?? "");
+
+            var current = new StringBuilder();
+            bool? currentIsPersian = null;
 
             foreach (var c in preparedText)
             {
+                // فاصله باید متعلق به Run قبلی باشد
+                // نه اینکه خودش باعث تغییر نوع Run شود
+                if (char.IsWhiteSpace(c))
+                {
+                    current.Append(c);
+                    continue;
+                }
+
                 bool isPersian = !IsEnglish(c);
 
                 if (currentIsPersian == null)
-                    currentIsPersian = isPersian;
-
-                if (currentIsPersian != isPersian)
                 {
-                    if (current.Count > 0)
-                        runs.Add(CreateRunForParagraph(new string(current.ToArray()), currentIsPersian.Value));
-                    current.Clear();
+                    currentIsPersian = isPersian;
+                }
+                else if (currentIsPersian != isPersian)
+                {
+                    if (current.Length > 0)
+                    {
+                        paragraph.Append(
+                            CreateRunForParagraph(
+                                current.ToString(),
+                                currentIsPersian.Value
+                            )
+                        );
+
+                        current.Clear();
+                    }
+
                     currentIsPersian = isPersian;
                 }
 
-                current.Add(c);
+                current.Append(c);
             }
 
-            if (current.Count > 0)
-                runs.Add(CreateRunForParagraph(new string(current.ToArray()), currentIsPersian ?? false));
+            if (current.Length > 0 && currentIsPersian.HasValue)
+            {
+                paragraph.Append(
+                    CreateRunForParagraph(
+                        current.ToString(),
+                        currentIsPersian.Value
+                    )
+                );
+            }
 
-            paragraph.Append(runs);
             return paragraph;
         }
 
