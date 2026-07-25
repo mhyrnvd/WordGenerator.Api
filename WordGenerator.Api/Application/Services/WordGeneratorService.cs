@@ -2715,33 +2715,78 @@ namespace WordGenerator.Api.Application.Services
         private List<W.Run> CreateRunsForHeaderCell(string text)
         {
             var runs = new List<W.Run>();
-            var current = new List<char>();
-            bool? currentIsPersian = null;
-            var preparedText = PrepareRTLText(text);
+            if (string.IsNullOrEmpty(text))
+            {
+                runs.Add(CreateHeaderCellRun(" ", false));
+                return runs;
+            }
 
-            foreach (var c in preparedText)
+            // اگر متن فقط انگلیسی است
+            if (text.All(c => IsEnglish(c) || char.IsWhiteSpace(c) || c == '.' || c == ',' || c == '-' || c == '_'))
+            {
+                runs.Add(CreateHeaderCellRun(text, false));
+                return runs;
+            }
+
+            // اگر متن فقط فارسی است
+            if (text.All(c => !IsEnglish(c) || char.IsWhiteSpace(c)))
+            {
+                runs.Add(CreateHeaderCellRun(text, true));
+                return runs;
+            }
+
+            var current = new StringBuilder();
+            bool? currentIsPersian = null;
+            var processedText = text;
+
+            processedText = processedText.Replace('\u200B', ' ');
+            processedText = processedText.Replace('\u200C', ' ');
+            processedText = processedText.Replace('\u200D', ' ');
+
+            // اطمینان از وجود فاصله بین کلمات انگلیسی
+            processedText = Regex.Replace(processedText, @"([a-z])([A-Z])", "$1 $2");
+            processedText = Regex.Replace(processedText, @"([A-Z])([A-Z][a-z])", "$1 $2");
+            processedText = Regex.Replace(processedText, @"(\d+)([^\d\s])", "$1 $2");
+            processedText = Regex.Replace(processedText, @"([^\d\s])(\d+)", "$1 $2");
+
+            foreach (char c in processedText)
             {
                 bool isPersian = !IsEnglish(c);
 
                 if (currentIsPersian == null)
-                    currentIsPersian = isPersian;
-
-                if (currentIsPersian != isPersian)
                 {
-                    if (current.Count > 0)
-                        runs.Add(CreateHeaderCellRun(new string(current.ToArray()), currentIsPersian.Value));
-                    current.Clear();
+                    currentIsPersian = isPersian;
+                }
+                else if (currentIsPersian != isPersian)
+                {
+                    if (current.Length > 0)
+                    {
+                        var segment = current.ToString().Trim();
+                        if (!string.IsNullOrEmpty(segment))
+                        {
+                            runs.Add(CreateHeaderCellRun(segment, currentIsPersian.Value));
+                        }
+                        current.Clear();
+                    }
                     currentIsPersian = isPersian;
                 }
 
-                current.Add(c);
+                current.Append(c);
             }
 
-            if (current.Count > 0)
-                runs.Add(CreateHeaderCellRun(new string(current.ToArray()), currentIsPersian ?? false));
+            if (current.Length > 0 && currentIsPersian.HasValue)
+            {
+                var segment = current.ToString().Trim();
+                if (!string.IsNullOrEmpty(segment))
+                {
+                    runs.Add(CreateHeaderCellRun(segment, currentIsPersian.Value));
+                }
+            }
 
             if (runs.Count == 0)
+            {
                 runs.Add(CreateHeaderCellRun(" ", false));
+            }
 
             return runs;
         }
@@ -2758,7 +2803,7 @@ namespace WordGenerator.Api.Application.Services
                     ComplexScript = fontName
                 },
                 new W.FontSize { Val = TableHeaderFontSize },
-                new W.Bold()  // ===== هدرها همیشه بولـد =====
+                new W.Bold()
             );
 
             var run = new W.Run(runProperties);
@@ -2771,7 +2816,9 @@ namespace WordGenerator.Api.Application.Services
             }
             else
             {
-                run.Append(new W.Text(" "));
+                var textElement = new W.Text(" ");
+                textElement.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
+                run.Append(textElement);
             }
 
             return run;
@@ -2816,33 +2863,86 @@ namespace WordGenerator.Api.Application.Services
         private List<W.Run> CreateRunsForTableCell(string text)
         {
             var runs = new List<W.Run>();
-            var current = new List<char>();
-            bool? currentIsPersian = null;
-            var preparedText = PrepareRTLText(text);
+            if (string.IsNullOrEmpty(text))
+            {
+                runs.Add(CreateTableCellRun(" ", false, false));
+                return runs;
+            }
 
-            foreach (var c in preparedText)
+            // ===== اگر متن فقط انگلیسی است =====
+            if (text.All(c => IsEnglish(c) || char.IsWhiteSpace(c) || c == '.' || c == ',' || c == '-' || c == '_'))
+            {
+                runs.Add(CreateTableCellRun(text, false, false));
+                return runs;
+            }
+
+            // ===== اگر متن فقط فارسی است (همه کاراکترها غیر انگلیسی) =====
+            if (text.All(c => !IsEnglish(c) || char.IsWhiteSpace(c)))
+            {
+                runs.Add(CreateTableCellRun(text, true, false));
+                return runs;
+            }
+
+            // ===== متن مخلوط =====
+            var current = new StringBuilder();
+            bool? currentIsPersian = null;
+            var processedText = text;
+
+            // جایگزین کردن فاصله‌های غیراستاندارد
+            processedText = processedText.Replace('\u200B', ' ');
+            processedText = processedText.Replace('\u200C', ' ');
+            processedText = processedText.Replace('\u200D', ' ');
+
+            // ===== مهم: اطمینان از وجود فاصله بین کلمات انگلیسی =====
+            // "Corrosivityofsoilsonsteel" -> "Corrosivity of soils on steel"
+            processedText = Regex.Replace(processedText, @"([a-z])([A-Z])", "$1 $2");
+            processedText = Regex.Replace(processedText, @"([A-Z])([A-Z][a-z])", "$1 $2");
+            // اضافه کردن فاصله بعد از اعداد قبل از حرف فارسی
+            processedText = Regex.Replace(processedText, @"(\d+)([^\d\s])", "$1 $2");
+            // اضافه کردن فاصله قبل از اعداد بعد از حرف فارسی
+            processedText = Regex.Replace(processedText, @"([^\d\s])(\d+)", "$1 $2");
+
+            foreach (char c in processedText)
             {
                 bool isPersian = !IsEnglish(c);
 
                 if (currentIsPersian == null)
-                    currentIsPersian = isPersian;
-
-                if (currentIsPersian != isPersian)
                 {
-                    if (current.Count > 0)
-                        runs.Add(CreateTableCellRun(new string(current.ToArray()), currentIsPersian.Value, false));
-                    current.Clear();
+                    currentIsPersian = isPersian;
+                }
+                else if (currentIsPersian != isPersian)
+                {
+                    // ذخیره بخش قبلی
+                    if (current.Length > 0)
+                    {
+                        var segment = current.ToString().Trim();
+                        if (!string.IsNullOrEmpty(segment))
+                        {
+                            runs.Add(CreateTableCellRun(segment, currentIsPersian.Value, false));
+                        }
+                        current.Clear();
+                    }
                     currentIsPersian = isPersian;
                 }
 
-                current.Add(c);
+                current.Append(c);
             }
 
-            if (current.Count > 0)
-                runs.Add(CreateTableCellRun(new string(current.ToArray()), currentIsPersian ?? false, false));
+            // ذخیره بخش آخر
+            if (current.Length > 0 && currentIsPersian.HasValue)
+            {
+                var segment = current.ToString().Trim();
+                if (!string.IsNullOrEmpty(segment))
+                {
+                    runs.Add(CreateTableCellRun(segment, currentIsPersian.Value, false));
+                }
+            }
 
+            // اگر هیچ Run ساخته نشد
             if (runs.Count == 0)
+            {
                 runs.Add(CreateTableCellRun(" ", false, false));
+            }
 
             return runs;
         }
@@ -2867,6 +2967,7 @@ namespace WordGenerator.Api.Application.Services
 
             var run = new W.Run(runProperties);
 
+            // ===== مهم: حفظ فاصله‌ها =====
             if (!string.IsNullOrWhiteSpace(text))
             {
                 var textElement = new W.Text(text);
@@ -2875,11 +2976,14 @@ namespace WordGenerator.Api.Application.Services
             }
             else
             {
-                run.Append(new W.Text(" "));
+                var textElement = new W.Text(" ");
+                textElement.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
+                run.Append(textElement);
             }
 
             return run;
         }
+
 
         #endregion
 
@@ -2986,76 +3090,12 @@ namespace WordGenerator.Api.Application.Services
         #region Text Helpers
 
         private string PrepareRTLText(string text)
-         {
+        {
             if (string.IsNullOrWhiteSpace(text))
                 return text;
 
-            // ===== فقط برای متن‌های فارسی از RTL استفاده کن =====
-            // اگر متن شامل حروف فارسی نیست، آن را بدون تغییر برگردان
-            bool hasPersian = text.Any(c => !IsEnglish(c) && c > '\u0600');
-
-            if (!hasPersian)
-            {
-                // متن انگلیسی - از LTR استفاده کن
-                return "\u200E" + text + "\u200E";
-            }
-
-            // ===== متن مخلوط - هر بخش را جداگانه پردازش کن =====
-            var result = new StringBuilder();
-            var current = new StringBuilder();
-            bool? currentIsPersian = null;
-
-            foreach (char c in text)
-            {
-                bool isPersian = !IsEnglish(c);
-
-                if (currentIsPersian == null)
-                {
-                    currentIsPersian = isPersian;
-                }
-                else if (currentIsPersian != isPersian)
-                {
-                    // ذخیره بخش قبلی
-                    if (current.Length > 0)
-                    {
-                        if (currentIsPersian.Value)
-                        {
-                            result.Append("\u200F");
-                            result.Append(current.ToString());
-                            result.Append("\u200F");
-                        }
-                        else
-                        {
-                            result.Append("\u200E");
-                            result.Append(current.ToString());
-                            result.Append("\u200E");
-                        }
-                        current.Clear();
-                    }
-                    currentIsPersian = isPersian;
-                }
-
-                current.Append(c);
-            }
-
-            // ذخیره بخش آخر
-            if (current.Length > 0 && currentIsPersian.HasValue)
-            {
-                if (currentIsPersian.Value)
-                {
-                    result.Append("\u200F");
-                    result.Append(current.ToString());
-                    result.Append("\u200F");
-                }
-                else
-                {
-                    result.Append("\u200E");
-                    result.Append(current.ToString());
-                    result.Append("\u200E");
-                }
-            }
-
-            return result.ToString();
+            text = Regex.Replace(text, @"\((.*?)\)", m => "\u200F)" + m.Groups[1].Value + "(\u200F");
+            return "\u202B" + text + "\u202C";
         }
 
         private bool IsEnglish(char c)
