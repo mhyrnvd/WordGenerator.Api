@@ -1399,7 +1399,7 @@ namespace WordGenerator.Api.Application.Services
             var runs = new List<W.Run>();
             var current = new List<char>();
             bool? currentIsPersian = null;
-            var preparedText = PrepareRTLText(text);
+            var preparedText = /*PrepareRTLText(*/text/*)*/;
 
             foreach (var c in preparedText)
             {
