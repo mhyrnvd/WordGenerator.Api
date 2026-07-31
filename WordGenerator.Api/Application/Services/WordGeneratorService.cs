@@ -1390,71 +1390,102 @@ namespace WordGenerator.Api.Application.Services
         {
             var paragraph = new W.Paragraph(
                 new W.ParagraphProperties(
-                    new W.Justification() { Val = W.JustificationValues.Left },
-                    new W.Indentation() { FirstLine = "397" },
-                    new W.SpacingBetweenLines() { Line = "360", LineRule = W.LineSpacingRuleValues.Auto }
+                    new W.Justification()
+                    {
+                        Val = W.JustificationValues.Left
+                    },
+                    new W.Indentation()
+                    {
+                        FirstLine = "397"
+                    },
+                    new W.SpacingBetweenLines()
+                    {
+                        Line = "360",
+                        LineRule = W.LineSpacingRuleValues.Auto
+                    }
                 )
             );
 
-            var runs = new List<W.Run>();
-            var current = new List<char>();
+            text = text?
+                .Replace("\r", "")
+                .TrimEnd('\n');
+
+            var preparedText = text ?? "";
+
+            var current = new StringBuilder();
             bool? currentIsPersian = null;
-            var preparedText = PrepareRTLText(text);
 
             foreach (var c in preparedText)
             {
+                // فاصله متعلق به Run قبلی باشد
+                if (char.IsWhiteSpace(c))
+                {
+                    current.Append(c);
+                    continue;
+                }
+
                 bool isPersian = !IsEnglish(c);
 
                 if (currentIsPersian == null)
-                    currentIsPersian = isPersian;
-
-                if (currentIsPersian != isPersian)
                 {
-                    if (current.Count > 0)
+                    currentIsPersian = isPersian;
+                }
+                else if (currentIsPersian != isPersian)
+                {
+                    if (current.Length > 0)
                     {
-                        var runText = new string(current.ToArray());
-                        bool isPersianRun = currentIsPersian.Value;
-                        var run = new W.Run(
-                            new W.RunProperties(
-                                new W.RunFonts()
-                                {
-                                    Ascii = EnglishFont,
-                                    HighAnsi = EnglishFont,
-                                    ComplexScript = isPersianRun ? PersianFont : EnglishFont
-                                },
-                                new W.FontSize() { Val = EnglishFontSize }
-                            ),
-                            new W.Text(runText)
+                        paragraph.Append(
+                            new W.Run(
+                                new W.RunProperties(
+                                    new W.RunFonts()
+                                    {
+                                        Ascii = EnglishFont,
+                                        HighAnsi = EnglishFont,
+                                        ComplexScript = currentIsPersian.Value
+                                            ? PersianFont
+                                            : EnglishFont
+                                    },
+                                    new W.FontSize()
+                                    {
+                                        Val = EnglishFontSize
+                                    }
+                                ),
+                                new W.Text(current.ToString())
+                            )
                         );
-                        runs.Add(run);
+
+                        current.Clear();
                     }
-                    current.Clear();
+
                     currentIsPersian = isPersian;
                 }
 
-                current.Add(c);
+                current.Append(c);
             }
 
-            if (current.Count > 0)
+            if (current.Length > 0 && currentIsPersian.HasValue)
             {
-                var runText = new string(current.ToArray());
-                bool isPersianRun = currentIsPersian ?? false;
-                var run = new W.Run(
-                    new W.RunProperties(
-                        new W.RunFonts()
-                        {
-                            Ascii = EnglishFont,
-                            HighAnsi = EnglishFont,
-                            ComplexScript = isPersianRun ? PersianFont : EnglishFont
-                        },
-                        new W.FontSize() { Val = EnglishFontSize }
-                    ),
-                    new W.Text(runText)
+                paragraph.Append(
+                    new W.Run(
+                        new W.RunProperties(
+                            new W.RunFonts()
+                            {
+                                Ascii = EnglishFont,
+                                HighAnsi = EnglishFont,
+                                ComplexScript = currentIsPersian.Value
+                                    ? PersianFont
+                                    : EnglishFont
+                            },
+                            new W.FontSize()
+                            {
+                                Val = EnglishFontSize
+                            }
+                        ),
+                        new W.Text(current.ToString())
+                    )
                 );
-                runs.Add(run);
             }
 
-            paragraph.Append(runs);
             return paragraph;
         }
 
@@ -1525,76 +1556,108 @@ namespace WordGenerator.Api.Application.Services
         private List<W.Run> CreateRunsForLeftAlignedBulletText(string text)
         {
             var runs = new List<W.Run>();
-            if (string.IsNullOrEmpty(text))
+
+            if (string.IsNullOrWhiteSpace(text))
             {
-                var run = new W.Run(
-                    new W.RunProperties(
-                        new W.RunFonts() { Ascii = EnglishFont, HighAnsi = EnglishFont, ComplexScript = EnglishFont },
-                        new W.FontSize() { Val = EnglishFontSize }
-                    ),
-                    new W.Text(" ")
+                runs.Add(
+                    new W.Run(
+                        new W.RunProperties(
+                            new W.RunFonts()
+                            {
+                                Ascii = EnglishFont,
+                                HighAnsi = EnglishFont,
+                                ComplexScript = EnglishFont
+                            },
+                            new W.FontSize()
+                            {
+                                Val = EnglishFontSize
+                            }
+                        ),
+                        new W.Text(" ")
+                    )
                 );
-                runs.Add(run);
+
                 return runs;
             }
 
-            var current = new List<char>();
-            bool? currentIsPersian = null;
+            text = text
+                .Replace("\r", "")
+                .TrimEnd('\n');
+
             var preparedText = PrepareRTLText(text);
+
+            var current = new StringBuilder();
+            bool? currentIsPersian = null;
 
             foreach (var c in preparedText)
             {
+                // فاصله متعلق به Run قبلی باشد
+                if (char.IsWhiteSpace(c))
+                {
+                    current.Append(c);
+                    continue;
+                }
+
                 bool isPersian = !IsEnglish(c);
 
                 if (currentIsPersian == null)
-                    currentIsPersian = isPersian;
-
-                if (currentIsPersian != isPersian)
                 {
-                    if (current.Count > 0)
+                    currentIsPersian = isPersian;
+                }
+                else if (currentIsPersian != isPersian)
+                {
+                    if (current.Length > 0)
                     {
-                        var runText = new string(current.ToArray());
-                        bool isPersianRun = currentIsPersian.Value;
-                        var fontName = isPersianRun ? PersianFont : EnglishFont;
-                        var run = new W.Run(
-                            new W.RunProperties(
-                                new W.RunFonts()
-                                {
-                                    Ascii = EnglishFont,
-                                    HighAnsi = EnglishFont,
-                                    ComplexScript = fontName
-                                },
-                                new W.FontSize() { Val = EnglishFontSize }
-                            ),
-                            new W.Text(runText)
+                        runs.Add(
+                            new W.Run(
+                                new W.RunProperties(
+                                    new W.RunFonts()
+                                    {
+                                        Ascii = EnglishFont,
+                                        HighAnsi = EnglishFont,
+                                        ComplexScript = currentIsPersian.Value
+                                            ? PersianFont
+                                            : EnglishFont
+                                    },
+                                    new W.FontSize()
+                                    {
+                                        Val = EnglishFontSize
+                                    }
+                                ),
+                                new W.Text(current.ToString())
+                            )
                         );
-                        runs.Add(run);
+
+                        current.Clear();
                     }
-                    current.Clear();
+
                     currentIsPersian = isPersian;
                 }
 
-                current.Add(c);
+                current.Append(c);
             }
 
-            if (current.Count > 0)
+            if (current.Length > 0 && currentIsPersian.HasValue)
             {
-                var runText = new string(current.ToArray());
-                bool isPersianRun = currentIsPersian ?? false;
-                var fontName = isPersianRun ? PersianFont : EnglishFont;
-                var run = new W.Run(
-                    new W.RunProperties(
-                        new W.RunFonts()
-                        {
-                            Ascii = EnglishFont,
-                            HighAnsi = EnglishFont,
-                            ComplexScript = fontName
-                        },
-                        new W.FontSize() { Val = EnglishFontSize }
-                    ),
-                    new W.Text(runText)
+                runs.Add(
+                    new W.Run(
+                        new W.RunProperties(
+                            new W.RunFonts()
+                            {
+                                Ascii = EnglishFont,
+                                HighAnsi = EnglishFont,
+                                ComplexScript = currentIsPersian.Value
+                                    ? PersianFont
+                                    : EnglishFont
+                            },
+                            new W.FontSize()
+                            {
+                                Val = EnglishFontSize
+                            }
+                        ),
+                        new W.Text(current.ToString())
+                    )
                 );
-                runs.Add(run);
             }
 
             return runs;
