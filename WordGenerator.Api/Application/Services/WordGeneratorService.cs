@@ -3131,6 +3131,8 @@ namespace WordGenerator.Api.Application.Services
                 return text;
 
             text = Regex.Replace(text, @"\((.*?)\)", m => "\u200F)" + m.Groups[1].Value + "(\u200F");
+            text = Regex.Replace(text, @"«(.*?)»", m => "\u200F»" + m.Groups[1].Value + "«\u200F");
+
             return "\u202B" + text + "\u202C";
         }
 
@@ -3142,7 +3144,7 @@ namespace WordGenerator.Api.Application.Services
             if (c >= '0' && c <= '9')
                 return false;
 
-            return c == '[' || c == ']' || c == '{' || c == '}' || c == '(' || c == ')' ||
+            return c == '[' || c == ']' || c == '{' || c == '}' || c == '(' || c == ')' || c == '»'|| c == '«' ||
                    /*c == '.' ||*/ c == ',' || c == ';' || c == '!' || c == '?' ||
                    c == '@' || c == '#' || c == '$' || c == '%' || c == '^' || c == '&' ||
                    c == '*' || c == '+' || c == '=' || c == '<' || c == '>' || c == '/' ||
