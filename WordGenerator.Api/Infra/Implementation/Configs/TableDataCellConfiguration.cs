@@ -30,8 +30,8 @@ namespace WordGenerator.Api.Infra.Configurations
                 .OnDelete(DeleteBehavior.Restrict);
 
             // ایندکس‌ها
-            builder.HasIndex(x => new { x.TableDataRowId, x.TableColumnDefinitionId })
-                .IsUnique();
+            //builder.HasIndex(x => new { x.TableDataRowId, x.TableColumnDefinitionId })
+            //    .IsUnique();
         }
     }
 }
