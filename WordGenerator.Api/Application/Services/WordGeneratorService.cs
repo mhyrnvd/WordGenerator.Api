@@ -2988,9 +2988,7 @@ namespace WordGenerator.Api.Application.Services
             var processedText = text;
 
             // جایگزین کردن فاصله‌های غیراستاندارد
-            processedText = processedText.Replace('\u200B', ' ');
-            processedText = processedText.Replace('\u200C', ' ');
-            processedText = processedText.Replace('\u200D', ' ');
+            processedText = PrepareRTLText(processedText);
 
             // ===== مهم: اطمینان از وجود فاصله بین کلمات انگلیسی =====
             // "Corrosivityofsoilsonsteel" -> "Corrosivity of soils on steel"
